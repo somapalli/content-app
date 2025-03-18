@@ -1,0 +1,15 @@
+Welcome to our Content Display App!
+
+This is a sample content that can be dynamically injected into the HTML file.
+
+Features:
+- Dynamic content loading
+- Responsive design
+- Easy to update
+
+You can add more content by:
+1. Editing this text file
+2. Using the "Add Content" button
+3. Updating the content through the API
+
+Feel free to customize this content according to your needs! 
