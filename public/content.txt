@@ -13,3 +13,246 @@ You can add more content by:
 3. Updating the content through the API
 
 Feel free to customize this content according to your needs! 
+
+#!/bin/bash
+
+# GitBucket Metrics Collector
+# This script extracts metrics from GitBucket repositories in a project
+# Metrics: users, number of commits, lines of code
+
+# Configuration
+GITBUCKET_URL="http://localhost:8080/gitbucket"  # Change to your GitBucket URL
+API_TOKEN=""                                      # Your API token if needed
+PROJECT_NAME=""                                   # Project name to scan
+
+# Output file
+OUTPUT_FILE="gitbucket_metrics_$(date +%Y%m%d).csv"
+
+# Check if required tools are installed
+command -v git >/dev/null 2>&1 || { echo "Error: git is required but not installed. Aborting."; exit 1; }
+command -v curl >/dev/null 2>&1 || { echo "Error: curl is required but not installed. Aborting."; exit 1; }
+command -v jq >/dev/null 2>&1 || { echo "Error: jq is required but not installed. Aborting."; exit 1; }
+
+# Function to check if API token is set
+check_token() {
+  if [ -z "$API_TOKEN" ]; then
+    echo "Warning: API token not set. Some functions may be limited."
+    AUTH_HEADER=""
+  else
+    AUTH_HEADER="Authorization: token $API_TOKEN"
+  fi
+}
+
+# Function to get repositories in a project
+get_repositories() {
+  if [ -z "$PROJECT_NAME" ]; then
+    echo "Error: PROJECT_NAME is not set. Please edit the script and set your project name."
+    exit 1
+  fi
+  
+  echo "Fetching repositories for project: $PROJECT_NAME"
+  
+  # Get list of repositories using GitBucket API
+  # Note: Adjust the API endpoint based on your GitBucket version
+  if [ -z "$AUTH_HEADER" ]; then
+    REPOS=$(curl -s "$GITBUCKET_URL/api/v3/orgs/$PROJECT_NAME/repos" | jq -r '.[].name')
+  else
+    REPOS=$(curl -s -H "$AUTH_HEADER" "$GITBUCKET_URL/api/v3/orgs/$PROJECT_NAME/repos" | jq -r '.[].name')
+  fi
+  
+  if [ -z "$REPOS" ]; then
+    echo "Error: No repositories found or API call failed. Check your PROJECT_NAME and API_TOKEN."
+    exit 1
+  fi
+  
+  echo "Found repositories: $REPOS"
+  return 0
+}
+
+# Function to clone/update repository
+clone_repository() {
+  local repo_name=$1
+  local temp_dir="temp_repo_$repo_name"
+  
+  echo "Processing repository: $repo_name"
+  
+  if [ -d "$temp_dir" ]; then
+    echo "Repository directory exists, updating..."
+    cd "$temp_dir" || { echo "Error: Could not change to directory $temp_dir"; return 1; }
+    git pull
+    cd ..
+  else
+    echo "Cloning repository..."
+    git clone "$GITBUCKET_URL/$PROJECT_NAME/$repo_name.git" "$temp_dir" || { echo "Error: Failed to clone $repo_name"; return 1; }
+  fi
+  
+  return 0
+}
+
+# Function to get commit count by user
+get_commit_metrics() {
+  local repo_name=$1
+  local temp_dir="temp_repo_$repo_name"
+  
+  echo "Getting commit metrics for $repo_name..."
+  
+  cd "$temp_dir" || { echo "Error: Could not change to directory $temp_dir"; return 1; }
+  
+  # Get total number of commits
+  local total_commits
+  total_commits=$(git rev-list --count HEAD)
+  echo "Total commits: $total_commits"
+  
+  # Get commits by author
+  echo "Commits by author:"
+  git shortlog -sne HEAD
+  
+  # Store commit data for CSV
+  commit_data=$(git shortlog -sne HEAD | sed 's/^\s*//g')
+  
+  cd ..
+  return 0
+}
+
+# Function to count lines of code
+count_lines_of_code() {
+  local repo_name=$1
+  local temp_dir="temp_repo_$repo_name"
+  
+  echo "Counting lines of code for $repo_name..."
+  
+  cd "$temp_dir" || { echo "Error: Could not change to directory $temp_dir"; return 1; }
+  
+  # Count lines of code, excluding binary files, vendor directories, etc.
+  local total_lines
+  total_lines=$(find . -type f \
+    -not -path "/\." \
+    -not -path "/node_modules/" \
+    -not -path "/vendor/" \
+    -not -path "/dist/" \
+    -not -path "/build/" \
+    | xargs file \
+    | grep "text" \
+    | cut -d: -f1 \
+    | xargs wc -l 2>/dev/null \
+    | tail -n 1 \
+    | awk '{print $1}')
+  
+  echo "Total lines of code: $total_lines"
+  
+  cd ..
+  return 0
+}
+
+# Function to write metrics to CSV
+write_metrics_to_csv() {
+  local repo_name=$1
+  local temp_dir="temp_repo_$repo_name"
+  
+  echo "Writing metrics for $repo_name to $OUTPUT_FILE..."
+  
+  # Initialize CSV if it doesn't exist
+  if [ ! -f "$OUTPUT_FILE" ]; then
+    echo "Repository,User,Email,Commits,TotalCommits,LinesOfCode" > "$OUTPUT_FILE"
+  fi
+  
+  cd "$temp_dir" || { echo "Error: Could not change to directory $temp_dir"; return 1; }
+  
+  # Get total commits
+  local total_commits
+  total_commits=$(git rev-list --count HEAD)
+  
+  # Get total lines of code
+  local total_lines
+  total_lines=$(find . -type f \
+    -not -path "/\." \
+    -not -path "/node_modules/" \
+    -not -path "/vendor/" \
+    -not -path "/dist/" \
+    -not -path "/build/" \
+    | xargs file \
+    | grep "text" \
+    | cut -d: -f1 \
+    | xargs wc -l 2>/dev/null \
+    | tail -n 1 \
+    | awk '{print $1}')
+  
+  # Write commit data by author
+  git shortlog -sne HEAD | while read -r line; do
+    local commits
+    local author_info
+    
+    commits=$(echo "$line" | awk '{print $1}')
+    author_info=$(echo "$line" | cut -d' ' -f2-)
+    
+    # Extract name and email
+    local name
+    local email
+    
+    name=$(echo "$author_info" | sed -E 's/(.) <(.)>/\1/')
+    email=$(echo "$author_info" | sed -E 's/(.) <(.)>/\2/')
+    
+    # Write to CSV
+    echo "$repo_name,$name,$email,$commits,$total_commits,$total_lines" >> "../$OUTPUT_FILE"
+  done
+  
+  cd ..
+  return 0
+}
+
+# Function to clean up temporary directories
+cleanup() {
+  echo "Cleaning up temporary directories..."
+  rm -rf temp_repo_*
+}
+
+# Main function
+main() {
+  # Print script header
+  echo "====================================="
+  echo "GitBucket Metrics Collector"
+  echo "====================================="
+  
+  # Check API token
+  check_token
+  
+  # Get repositories
+  get_repositories
+  
+  # Create CSV header
+  echo "Repository,User,Email,Commits,TotalCommits,LinesOfCode" > "$OUTPUT_FILE"
+  
+  # Process each repository
+  for repo in $REPOS; do
+    echo "-------------------------------------"
+    echo "Processing repository: $repo"
+    
+    # Clone/update repository
+    clone_repository "$repo"
+    
+    # Get metrics
+    get_commit_metrics "$repo"
+    count_lines_of_code "$repo"
+    
+    # Write metrics to CSV
+    write_metrics_to_csv "$repo"
+    
+    echo "Finished processing $repo"
+    echo "-------------------------------------"
+  done
+  
+  echo "All repositories processed. Results saved to $OUTPUT_FILE"
+  
+  # Ask if user wants to clean up
+  read -p "Do you want to remove temporary repository directories? (y/n): " answer
+  if [ "$answer" = "y" ] || [ "$answer" = "Y" ]; then
+    cleanup
+  else
+    echo "Temporary directories not removed. You can manually delete them with: rm -rf temp_repo_*"
+  fi
+  
+  echo "Script completed successfully."
+}
+
+# Run main function
+main
