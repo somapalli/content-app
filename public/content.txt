@@ -14,3 +14,44 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Epic Description
+Enable limited online access for clients even after their merchant account is closed due to chargebacks or regulatory reporting requirements (e.g., 1099K). Upon closure of a merchant account, the account status will be updated to "Pending Closure" in MDM for 13 additional months, during which clients will retain read-only access to historical data. No transactional or administrative actions will be allowed during this period. After the 13-month window, the account will be marked as fully closed and access will be revoked.
+
+Benefit Hypothesis
+By providing post-closure read-only access, we ensure regulatory compliance (e.g., access to 1099K reports) and enhance client satisfaction by offering a transparent and seamless experience. This approach reduces client support calls and operational overhead related to ad-hoc data requests while maintaining secure and controlled access.
+
+Acceptance Criteria
+Merchant Status Handling
+
+Merchant accounts closed due to chargebacks or regulatory needs must be updated to "Pending Closure" in MDM for 13 months.
+
+After 13 months, the account status must change to "Closed" and access is revoked.
+
+Access Management
+
+Clients with "Pending Closure" status must have read-only access via the merchant gateway.
+
+All transactional features (e.g., refunds, chargebacks, configuration changes) are disabled during this period.
+
+Reporting & Compliance
+
+Clients must be able to download and view historical statements and regulatory documents (e.g., 1099K).
+
+Access to the audit logs and historical data must remain secure and unchanged.
+
+User Interface
+
+A clear banner or message indicating limited access should be displayed to the user.
+
+System should prompt users that no actions can be performed.
+
+Security and Role Management
+
+Only authorized users with valid credentials from the original account can log in during the pending closure phase.
+
+Role-based access must ensure data integrity and prevent escalation or support ticket misuse.
+
+Audit Logging
+
+All read actions during the 13-month post-closure period must be logged for compliance purposes.
+
