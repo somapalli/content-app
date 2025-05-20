@@ -14,3 +14,210 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Merchant Statement Fields and Settlement Data Model
+Overview
+Merchant statements provide a summarized view of transaction processing activity and how funds settle to the merchant. By examining a sample statement (e.g. Fiserv/First Data’s How to Read Your Statement guide), we can identify key fields – such as gross sales, refunds, chargebacks, adjustments, fees, and net deposit – and understand how the net settlement amount is calculated
+merchants.fiserv.com
+. Using these insights, we expand a generic data model to include settlement details in a vendor-agnostic way. This ensures the model can adapt across different payment platforms while capturing all necessary information for reconciliation and reporting.
+Key Fields in a Merchant Statement
+A typical merchant processing statement includes the following fields and figures (terminology may vary by provider, but concepts are consistent
+developer.paypal.com
+):
+Gross Sales (Total Submitted Sales): The total dollar amount of all card sales submitted for the period, before any deductions. This represents the merchant’s total charges or payment volume. (For example, a statement might show Total Gross Sales Submitted as $39,470.87 for the month
+merchants.fiserv.com
+.)
+Refunds (Returns/Credits): The total dollar amount of refunds or returns processed, i.e. credits issued back to customers. Refunds are typically shown as negative values since they reduce the gross sales. (For instance, $15.25 in refunds might appear as “Refunds –$15.25”, indicating money returned to customers
+merchants.fiserv.com
+.)
+Chargebacks/Reversals: The amount of any chargebacks or reversals – transactions disputed by the cardholder or bank and debited from the merchant. These are also negative amounts. (A chargeback is “a transaction that is challenged or disputed by a cardholder or card-issuing bank”
+duluthmn.gov
+. Chargebacks often appear in their own section with details, and the summary will list the total chargeback amount for the period, e.g. $0.00 if none occurred
+merchants.fiserv.com
+.)
+Adjustments: Miscellaneous credits or debits applied to the account outside of normal sales/refunds, often to correct errors or resolve discrepancies. Adjustments can be positive (crediting the merchant) or negative (debiting the merchant). (As defined in the statement guide: “Adjustments: The amounts credited to, or deducted from, your account to resolve processing and billing discrepancies.”
+duluthmn.gov
+. If none, the total is $0.00.)
+Fees (Processing Fees): The total processing fees charged to the merchant for the period. This can include discount rates, per-transaction fees, monthly fees, chargeback fees, etc. Fees are shown as negative values (money paid by the merchant). (Per Fiserv’s guide: “Fees: Amount charged to authorize, process and settle card transactions, along with transaction-based and/or fixed amounts charged for specific card processing services.”
+duluthmn.gov
+. For example, Fees might be –$1,361.31 for the month
+merchants.fiserv.com
+.)
+Net Deposit (Net Settlement Amount): The net amount disbursed to the merchant’s bank account after all refunds, chargebacks, adjustments, and fees are applied. This is essentially the take-home amount. It may be labeled as “Net Amount Processed” or “Total Amount Processed” on statements
+merchants.fiserv.com
+. This figure is calculated as:
+Net
+ 
+Deposit
+=
+Gross
+ 
+Sales
+−
+Refunds
+−
+Chargebacks
+±
+Adjustments
+−
+Fees
+.
+Net Deposit=Gross Sales−Refunds−Chargebacks±Adjustments−Fees.
+For example, if gross sales were $39,470.87, refunds were $15.25, and fees were $1,361.31 (with no chargebacks or other adjustments), the net deposit would be $39,470.87 – $15.25 – $1,361.31 = $38,094.31
+merchants.fiserv.com
+merchants.fiserv.com
+. This net amount is what gets settled to the merchant’s bank.
+In addition to these financial fields, statements often show transaction counts (number of sales, refunds, etc.) alongside the dollar amounts. For instance, a statement might list the total number of transactions (“items”) for sales and refunds by card type or day
+merchants.fiserv.com
+. These counts help merchants reconcile activity (e.g. 4,363 transactions totaling $39,455.62 net submitted in the example
+merchants.fiserv.com
+). While important for context, transaction counts mainly support reporting and aren’t directly part of the settlement calculation. Breakdown by Category: Many statements provide the above figures in multiple views for clarity:
+Summary by Day: Daily totals of submitted amounts and the resulting net (after any fees or adjustments that day). In our example, each day’s submitted amount equals the net processed that day since fees were deducted month-end
+merchants.fiserv.com
+merchants.fiserv.com
+.
+Summary by Card Type: Totals segmented by card brand (Visa, Mastercard, etc.), showing gross sales, refunds, and net per card type
+merchants.fiserv.com
+. This shows where the volume is coming from and how refunds are distributed.
+Summary by Batch: Totals for each settlement batch (each batch is a group of transactions, usually daily or per deposit). This includes batch ID, date, gross sales, refunds, and net for that batch. For example, a batch on 05/03/18 might show 86 transactions for $986.75 gross with $1.74 in refunds, yielding $985.01 net for that batch
+anyflip.com
+.
+These breakdowns map to the same core fields – they are just grouped differently (by date, card network, batch, etc.). The presence of these sections can vary by processor and merchant preferences, but the underlying data (sales, refunds, fees, etc.) remains consistent across statements.
+How Settlement Amounts Are Calculated
+Settlement refers to the process of transferring funds from processed transactions to the merchant’s bank account. The statement’s settlement (net deposit) amount is derived from the gross transaction volume minus any funds that were removed (refunds, chargebacks, fees) plus any funds that were added (positive adjustments or credits).
+Start with Gross Sales: This is the total charge volume. All customer payments in the period contribute to gross sales.
+Subtract Refunds: Any refund issued to customers reduces the amount the merchant ultimately receives. Refunds effectively reverse a portion of the gross sales. On statements these appear as negative values deducted from gross. (e.g. a $100 refund means $100 less in net funds.)
+Subtract Chargebacks/Reversals: Chargebacks not only remove the original sale amount from the merchant’s total, but often include additional fees. In the net settlement, the value of chargebacks is subtracted (along with any chargeback fee which may appear in the fees section). If no chargebacks occurred, this is $0.
+Apply Adjustments: Adjustments can go either way. A positive adjustment (credit) will increase the net settlement (effectively giving back funds to the merchant), while a negative adjustment (debit) will decrease the net. For example, a $50 processing error credit would add $50 to the net deposit, whereas a -$50 adjustment would remove $50.
+Subtract Fees: All processing and service fees for the period are totaled up and deducted. This includes per-transaction fees, percentage-based discount fees on sales volume, monthly service fees, etc. Some processors deduct fees on a rolling basis (e.g. daily from each batch’s deposit), while others deduct all fees at month-end. In either case, the statement shows the total fees as a lump sum (or categorized list) that reduces the net payout.
+After all these calculations, we arrive at the Net Settlement Amount. This net amount is what the merchant actually receives (disbursed to their bank). As noted in a PayPal/Braintree statement guide, the statement’s disbursement summary “shows your gross sales along with any refunds, credits, or fees, as well as the net amount that was disbursed to your bank account for that statement period.”
+developer.paypal.com
+ In other words, the net deposit on the statement should match the sum of all deposits made to the merchant’s bank for that period (excluding any separate adjustments outside the processor). It is the final settlement total after all adjustments. Example Calculation:
+Suppose a merchant had $50,000 in sales and $500 in refunds during the month. They also incurred $1,500 in processing fees, and had no chargebacks or other adjustments. The net settlement is computed as:
+Gross $50,000 – Refunds $500 = $49,500
+$49,500 – Fees $1,500 = $48,000 net deposit
+If the processor deposits funds daily, the $48,000 would be the sum of all daily deposits. If fees are taken monthly, that $1,500 might be withdrawn as a separate debit (often reflected on the bank statement as the processor’s fee withdrawal). The merchant statement encapsulates all this activity, allowing verification that gross minus all deductions equals the net paid out.
+Generic Data Model Expansion for Settlement Details
+To incorporate settlement details into a generic merchant statement data model, we define several entities and relationships that mirror the statement’s structure and underlying data. The goal is to capture all necessary information (transactions, refunds, fees, etc.) so that any statement field can be derived from the model. Below we outline the entity-relationship structure, key fields, example tables with data, and a mapping from statement fields to the model.
+Entities and Relationships
+Merchant – Represents the merchant account or business. Each Merchant has one or more Statements. Relationship: One-to-many with Statement (a merchant receives a statement each period). Key fields might include MerchantID, Name, etc.
+Statement – Represents a monthly (or periodic) statement summarizing activity. Key fields: StatementID, MerchantID (link to Merchant), PeriodStartDate, PeriodEndDate, and summary fields (total gross, total refunds, total chargebacks, total adjustments, total fees, net amount, etc.). The Statement links to detailed records of transactions, fees, etc. Relationship: One Statement encompasses many Transactions, Fees, etc. for that period.
+Transaction – Represents an individual payment transaction processed (could be a sale or a refund). Key fields: TransactionID, MerchantID, Date, Amount, Type (Sale or Refund), CardType/Network, BatchID (if using batch grouping), and possibly links to original transaction (in case of refunds or chargebacks). Relationships: Many Transactions belong to one Merchant; each Transaction falls into a Statement period via its date (or a direct StatementID foreign key can associate it to the statement). If refunds are recorded as separate Transaction records (with Type = Refund), they link to the original sale via an OriginalTransactionID reference.
+Batch/SettlementBatch – (Optional in model) Represents a group of transactions submitted together (often daily). Key fields: BatchID, MerchantID, SubmitDate, GrossAmount, RefundAmount, NetAmount. Relationship: One Batch has many Transactions; each Transaction has a BatchID. Batches within the statement date range roll up to that Statement. (In many systems, Batch correlates with a deposit event; one batch usually corresponds to one day’s settlement or one deposit.)
+Chargeback – Represents a chargeback or reversal record. Key fields: ChargebackID, OriginalTransactionID (if traceable), Date, Amount, ReasonCode, etc. Relationship: Chargebacks are linked to the Merchant (and possibly to the Statement period by date or a StatementID). If linked to the original transaction, one Transaction may have zero or one associated Chargeback. Chargebacks are also distinct from normal refunds in that they originate from the card network dispute process.
+Adjustment – Represents an adjustment entry (credit or debit) that is not a standard transaction or fee. Key fields: AdjustmentID, MerchantID, Date, Amount, Description, AdjustmentType (credit vs debit, or description like “billing correction”, “promotion credit”, etc.). Relationship: Adjustments link to the Merchant and/or Statement period. They are standalone entries applied to the account.
+Fee – Represents a fee charge. Key fields: FeeID, MerchantID, Date, Amount, FeeType, Description. Each fee record could detail a specific charge (e.g. “Discount rate fee” or “Transaction auth fee”). Relationship: Fees link to the Merchant (and Statement period). Often fees can be grouped by type (e.g. all interchange fees vs monthly fees), but at minimum, each fee entry associates with the statement. In some models, fees might be tied to transactions or batches (e.g. per-transaction fees could link to Transaction or Batch if needed for granular reconciliation). However, they ultimately roll up to the Statement total fees.
+Relationships Summary: In a typical model, the Statement acts as a summary that ties together all underlying data for a given period:
+Merchant 1––n Statement (each statement is for one merchant).
+Statement 1––n Transaction (all transactions within the period). In practice, we might not store a direct StatementID on each transaction if we can derive it by date, but logically the statement covers those transactions.
+Statement 1––n Fee, Statement 1––n Chargeback, Statement 1––n Adjustment (all fees/chargebacks/adjustments in the period belong to that statement).
+Transaction 1––1 Batch (each transaction is in one batch) and Batch 1––n Transactions. Statement 1––n Batch as well (all batches in the period). This helps produce daily or batch summaries like those on the statement, but the net effect is the same as aggregating transactions.
+Transaction 1––0..1 Chargeback (a sale transaction could have at most one chargeback associated; the Chargeback record references the original transaction).
+Transaction 1––0..1 Refund (if refunds are stored as separate transaction records, they reference the original sale; alternatively, refunds could be in the same Transaction table with a Type field, and OriginalTransactionID points to the sale).
+Merchant 1––n Adjustment, Merchant 1––n Fee (these typically already imply statement linking by date or statement id).
+Note: The data model can be designed such that the Statement table itself stores the pre-calculated summary fields (gross, net, etc.), or those can be dynamically computed via the detailed records. Often, for efficiency and record-keeping, the Statement entity will have fields for each key total as reported, which are populated when the statement is generated.
+Key Fields and Example Data Tables
+Below are example tables for each main entity, illustrating key fields and sample data (based on the scenario from the statement example): Merchant Table – basic merchant info (for context):
+MerchantID	Name	Status	StartDate
+M-0001	ABC Retail Store	Active	2017-02-15
+Statement Table – one record per monthly statement, including settlement totals:
+StatementID	MerchantID	PeriodStart	PeriodEnd	GrossSales	Refunds	Chargebacks	Adjustments	Fees	NetDeposit
+STMT-201805	M-0001	2018-05-01	2018-05-31	$39,470.87	$15.25	$0.00	$0.00	$1,361.31	$38,094.31
+Explanation: In May 2018 (as per our example), gross sales were $39,470.87, refunds $15.25, no chargebacks or adjustments, fees $1,361.31, resulting in net deposit $38,094.31. These values correspond to the statement fields (gross sales, refunds, etc., where refunds/fees are recorded as positive numbers in the table but understood as deductions). The NetDeposit is calculated as Gross – Refunds – Chargebacks – Fees + Adjustments. (If using signs, one could also store refunds and fees as negative values; the model can normalize this as needed. Here we show absolute values with the understanding that refunds/fees subtract from gross.) Transaction Table – individual transactions (sales and refunds). Each transaction has a type and might link to a batch and possibly an original transaction for refunds:
+TransactionID	MerchantID	Date	Type	CardType	Amount	BatchID	OrigTxnID
+TXN-1001	M-0001	2018-05-14	Sale	VISA	$120.00	BATCH-0514	(NULL)
+TXN-1002	M-0001	2018-05-14	Sale	VISA	$55.00	BATCH-0514	(NULL)
+TXN-1003	M-0001	2018-05-14	Refund	VISA	$15.25	BATCH-0514	TXN-0950
+TXN-1004	M-0001	2018-05-15	Sale	MC	$200.00	BATCH-0515	(NULL)
+...	...	...	...	...	...	...	...
+Sample interpretation: On 2018-05-14, there were two Visa sales ($120 and $55) and one Visa refund ($15.25) processed in batch 0514. The refund (TXN-1003) references an original sale TXN-0950 (which presumably occurred earlier and is being refunded). On 2018-05-15, a MasterCard sale of $200 was processed in batch 0515, etc. This table would include all 4,363 transactions for the month in the real scenario, but we show a few for illustration. The Type field differentiates sales vs refunds (and could include other types like “Auth”, “Void” if needed, but for settled transactions we focus on Sale/Refund). Amount is recorded as a positive value here, with Type indicating how it affects totals (alternatively, one could store refunds as negative amounts – design choice). BatchID ties the transaction to a settlement batch (e.g. BATCH-0514 for activity of May 14). OrigTxnID links a refund to its original sale (null for sales). All these transactions belong to Merchant M-0001 and fall in the May statement period. Batch Table – group of transactions (often daily):
+BatchID	MerchantID	SubmitDate	GrossAmount	RefundAmount	NetAmount	DepositDate
+BATCH-0514	M-0001	2018-05-14	$175.00	$15.25	$159.75	2018-05-15
+BATCH-0515	M-0001	2018-05-15	$200.00	$0.00	$200.00	2018-05-16
+...	...	...	...	...	...	...
+Explanation: Batch 0514 (submitted on May 14) includes the transactions from that day: total gross $175.00 in sales, $15.25 in refunds, net $159.75. If the processor deposits each batch next day, the deposit date might be May 15 for that batch’s $159.75. Batch 0515 had $200 gross, no refunds, net $200, deposited on May 16, etc. The sum of all batch NetAmounts for the month equals the statement’s NetDeposit. Note: If fees are deducted daily, they could be reflected in each batch’s net; in our example, fees were taken at month-end, so daily net equals daily gross minus refunds. The Batch entity is optional but useful for mapping how daily submissions correspond to deposits. The statement’s “Summary by Day” or “Summary by Batch” comes directly from this data. In a model, Batch provides a link between Transactions and actual deposit events. Fee Table – individual fee charges:
+FeeID	MerchantID	Date	Description	Amount	FeeType	StatementID
+FEE-001	M-0001	2018-05-31	Discount Rate on Sales Volume	$1,250.00	Processing Fee (%. of volume)	STMT-201805
+FEE-002	M-0001	2018-05-31	Per-Transaction Fees (432 tx @ $0.05)	$21.60	Processing Fee (per item)	STMT-201805
+FEE-003	M-0001	2018-05-31	Monthly Service Fee	$50.00	Monthly Fee	STMT-201805
+FEE-004	M-0001	2018-05-31	Network Access Fee	$30.00	Card Network Fee	STMT-201805
+Total			Total Fees	$1,351.60		
+Example: These fees (illustrative) add up to $1,351.60, roughly matching the statement’s fee total (in our Fiserv example, $1,361.31 was the total – our breakdown is hypothetical). The Fee table logs each component. The Description and FeeType fields categorize the fees. StatementID associates them with the statement. In practice, fees might be further detailed (e.g. distinguishing interchange vs acquirer fees), but this level suffices for modeling. Some fees (like per-transaction fees) can be computed by counting transactions; here we showed 432 transactions * $0.05 = $21.60. Others are percentage-based on volume (e.g. 2.5% of $50k = $1,250) or flat fees. Chargeback Table – chargeback entries (none in our example period, but for completeness):
+ChargebackID	MerchantID	Date	OriginalTxnID	Amount	Reason	StatementID
+CB-0001	M-0001	2018-04-20	TXN-0777	$45.00	Disputed – fraud	STMT-201804
+CB-0002	M-0001	2018-05-18	TXN-0980	$30.00	Disputed – not recognized	STMT-201805
+Example: Chargeback CB-0002 on 2018-05-18 for $30 would appear on the May statement as a deduction (and TXN-0980 would be the original sale that’s reversed). In our scenario, we assumed no chargebacks in May (hence $0.00 in the summary), but if present, they’d be listed. The Reason and link to OriginalTxnID help the merchant identify the transaction that was reversed. The sum of chargeback amounts in the period flows into the statement’s Chargebacks total. Adjustment Table – adjustment entries (none in our main example, but possible):
+AdjustmentID	MerchantID	Date	Amount	Type	Description	StatementID
+ADJ-0005	M-0001	2018-05-25	$-10.00	Debit	Pricing error correction	STMT-201805
+ADJ-0006	M-0001	2018-05-30	$+50.00	Credit	Volume rebate credit	STMT-201805
+Example: If there were adjustments, they would be recorded here. ADJ-0005 is a -$10 debit (perhaps a correction that removed $10 from the account) and ADJ-0006 a +$50 credit (maybe an incentive or rebate added to the account). The net effect of adjustments ($+40 in this hypothetical) would be reflected in the statement’s Adjustments total. In our main example, Adjustments were $0, so this table would be empty for that period. But the structure supports such entries.
+Mapping Statement Fields to the Data Model
+Finally, we map each statement field to the data model elements that produce it. This shows how the model supports generating the statement in a vendor-agnostic way:
+Gross Sales (Total Submitted Sales): Sum of all Transaction.Amount for transactions of Type “Sale” within the statement period (for the given Merchant). In our model, we could also sum Batch.GrossAmount for all batches in the period, or simply use the Statement.GrossSales field if we store it directly. (From the example data, GrossSales = $39,470.87
+merchants.fiserv.com
+ came from summing all sales transactions in May.)
+Refunds: Sum of all Transaction.Amount for transactions of Type “Refund” in the period. Alternatively, sum of Batch.RefundAmount or use Statement.Refunds field. (e.g. Refunds $15.25 was the total of refund transactions in May
+merchants.fiserv.com
+.)
+Chargebacks/Reversals: Sum of all Chargeback.Amount for chargebacks dated in the period. This could be aggregated from the Chargeback table or stored as Statement.Chargebacks. (In our example, this was $0.00
+merchants.fiserv.com
+ because the Chargeback table had no May entries.)
+Adjustments: Sum of all Adjustment.Amount in the period (taking into account sign: credits add, debits subtract). Alternatively, use Statement.Adjustments field. (Example shows $0.00
+merchants.fiserv.com
+, but if ADJ-0006 and ADJ-0005 above were in May, the net adjustment would be +$40 which would be reflected accordingly.)
+Fees: Sum of all Fee.Amount for fees assessed in the period. This can be broken down by fee type if needed, but the statement’s summary uses the total. Also corresponds to Statement.Fees. (In our example, total Fees ≈ $1,361.31
+merchants.fiserv.com
+, derived from summing fee records like FEE-001..004.)
+Net Deposit (Net Processed/Amount Processed): This is calculated either on the fly as Gross – Refunds – Chargebacks + Adjustments – Fees, or taken from Statement.NetDeposit if stored. It should equal the sum of all Batch.NetAmount (all batch deposits) for the period as well. (Example: NetDeposit $38,094.31
+merchants.fiserv.com
+ computed from other fields.)
+Transaction Count (Items): Though not explicitly asked, if needed the model provides this by counting Transaction records (e.g. count of sales vs refunds). The statement example showed total item count 4,363
+merchants.fiserv.com
+, which our Transaction table can produce (or store counts in statement if desired).
+Breakdowns by Card Type/Day/Batch: These are generated by grouping the Transaction data or using Batch/CardType fields. For card-type summary, group transactions by CardType to sum amounts and count items (our Transaction table has CardType for this). For daily summary, group by date or by Batch submit date. The data model’s granularity allows these pivoted views without additional stored fields (they are essentially queries: e.g. sum of Transaction.Amount by date, or use Batch table directly for daily totals, since each batch has a date and net amount). In the example, Summary by Card Type values
+merchants.fiserv.com
+ come from grouping the transactions by card network (Visa, MC, etc.), and Summary by Day comes from Batch or Transaction date groupings
+merchants.fiserv.com
+.
+The table below summarizes the mapping of statement fields to the data model:
+Statement Field	Data Model Source
+Total Gross Sales	Statement.GrossSales (stored) OR SUM(Transaction.Amount) for all Type=Sale in period
+merchants.fiserv.com
+.
+Total Refunds	Statement.Refunds (stored) OR SUM(Transaction.Amount) for all Type=Refund in period
+merchants.fiserv.com
+.
+Chargebacks/Reversals	Statement.Chargebacks (stored) OR SUM(Chargeback.Amount) for chargebacks in period
+merchants.fiserv.com
+.
+Adjustments	Statement.Adjustments (stored) OR SUM(Adjustment.Amount) (treat credits as positive, debits as negative)
+merchants.fiserv.com
+.
+Fees	Statement.Fees (stored) OR SUM(Fee.Amount) for all fees in period
+merchants.fiserv.com
+.
+Net Amount Processed
+(Net Deposit)	Statement.NetDeposit (stored) OR calculation: Gross Sales – Refunds – Chargebacks + Adjustments – Fees
+merchants.fiserv.com
+. Also cross-check with SUM(Batch.NetAmount) if batches are used.
+Each of these fields can be derived from the underlying tables, ensuring consistency. Storing them in the Statement record is convenient for quick retrieval and to match the exact figures on the official statement. The data model is vendor-agnostic – for example, whether the processor uses terms like “Total Amount Processed” (Fiserv) or “Disbursement Summary” (Braintree)
+developer.paypal.com
+, the fundamental data captured is the same. This model can accommodate different fee structures (daily vs monthly fees, interchange plus vs flat rate, etc.) by simply recording the fees and transactions appropriately.
+Entity-Relationship Diagram (Conceptual)
+(Described in text form) The relationships among these entities can be visualized as follows: a Merchant has many Statements. Each Statement aggregates many Transactions, Fees, Adjustments, and Chargebacks. Transactions can be grouped into Batches which also relate to the Statement period. Refunds and Chargebacks are special cases of transactions and disputes, linking back to original transactions. This structure ensures that for every line on the merchant’s statement, there is a corresponding set of data in the model:
+Transactions ↦ contribute to Gross Sales (sales) and Refunds (refund type transactions).
+Chargeback records ↦ contribute to Chargebacks/Reversals total.
+Adjustment records ↦ contribute to Adjustments total (sign depending on credit/debit).
+Fee records ↦ contribute to Fees total.
+The combination of all of the above ↦ yields the Net Deposit (what the merchant receives).
+By expanding the data model to include these settlement-related entities and fields, we create a comprehensive system capable of producing a merchant statement for any processor. The model remains adaptable: for instance, if another platform provides a similar statement with slightly different terminology or additional fields (say a tax breakdown or a reserve withholding), we can extend the model with those details. The core concepts – gross, refunds, fees, net – are universal in merchant settlement reporting
+developer.paypal.com
+, and this model captures them in a structured form.
+Conclusion
+In summary, the merchant statement’s settlement and deposit information can be represented in a generic data model by including entities for transactions, refunds, chargebacks, adjustments, and fees, all tied into a statement summary for each period. The entity relationships and key fields outlined above map directly to statement fields like gross sales, refunds, fees, and net deposit. With example tables and field mappings, we demonstrated how a platform-agnostic system can generate the same insights as a Fiserv statement (or any payment processor’s statement) while remaining flexible for different fee structures and reporting needs. This expanded data model ensures that every component of the merchant statement is traceable to granular data, enabling transparent reconciliation and analysis across any processing platform. Sources: The structure and field definitions were informed by a Fiserv merchant statement example
+merchants.fiserv.com
+merchants.fiserv.com
+ and industry documentation
+duluthmn.gov
+duluthmn.gov
+developer.paypal.com
+, which illustrate how gross sales, refunds, chargebacks, adjustments, fees, and net deposits are presented and calculated in practice. This approach is aligned with common merchant statement practices across providers (Fiserv, PayPal/Braintree, etc.), ensuring the model’s relevance beyond a single vendor.
