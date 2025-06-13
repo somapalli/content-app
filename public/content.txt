@@ -14,3 +14,44 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Subject: Security Requirement – Token Policy Enhancement to Support Headless Session Management in Embedded Finance Integration
+
+We are requesting a security policy update to improve support for headless session management in our embedded finance solution, developed in partnership with ERP platform providers (e.g., Workday, Microsoft, NetSuite, Sage) and intermediaries such as Koxa, Fispan, and Akoya.
+
+Use Case:
+Once a Pinacle end user completes initial authentication via 3-legged OAuth 2.0, the ERP platform receives an access token and a refresh token. In a typical flow, the ERP platform operates in a headless mode, executing financial operations on behalf of the user in the background without further interaction.
+
+To maintain this session:
+
+The platform uses the refresh token every 15 minutes to obtain a new access token and keep the session alive.
+
+This recurring process is required to avoid user disruption and keep ERP-integrated financial workflows uninterrupted.
+
+Current Limitation:
+
+The access token currently expires in 15 minutes.
+
+The refresh token is single-use and rolling.
+
+Any failure in the refresh flow forces the user to manually re-authenticate through the Pinacle UI, breaking the headless experience.
+
+Platforms are required to invoke token refresh logic frequently, increasing backend traffic and operational overhead.
+
+Requested Change:
+To better support this headless use case and reduce backend calls, we request the following:
+
+Increase access token validity to at least 1 hour.
+
+Enable refresh tokens with a 50-minute grace window and allow reusability during that period.
+
+These changes will:
+
+Reduce the frequency of backend refresh calls.
+
+Maintain secure, uninterrupted sessions for ERP platforms.
+
+Provide a reliable and seamless experience for high-value enterprise users.
+
+Align with industry-standard patterns for embedded finance integrations.
+
+We request the security team's evaluation and support to implement this update as part of our broader initiative to enhance platform stability, scalability, and customer experience.
