@@ -14,15 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-| **Data Type**                        | **Description**                                                                 | **Read Pattern** | **Write Pattern**          | **Modification** | **Growth Expectation**         | **Atomicity** |
-| ------------------------------------ | ------------------------------------------------------------------------------- | ---------------- | -------------------------- | ---------------- | ------------------------------ | ------------- |
-| **Card Transaction Data**            | Raw card transactions captured during purchases.                                | Intensive        | Write Once                 | N/A              | Massive, Horizontally Scalable | Strong        |
-| **Ledgering Data**                   | Includes transaction fees, adjustments, and calculated net payout amounts.      | Intensive        | Write Once                 | N/A              | Massive, Horizontally Scalable | Strong        |
-| **Merchant Profile Data**            | Core merchant information and status.                                           | Intensive        | Write Once with Versioning | Less Frequent    | On Demand                      | Strong        |
-| **Merchant Relationship Data**       | Hierarchical data that represents merchant affiliations and parent-child links. | Intensive        | Write Once with Versioning | Less Frequent    | On Demand                      | Strong        |
-| **Fraud Exception Data**             | Records of flagged or exceptional transactions for fraud monitoring.            | Intensive        | Write Once                 | N/A              | Massive                        | Eventual      |
-| **Empirical Merchant Risk Analysis** | Analytical models and scoring to assess merchant risk profiles.                 | Intensive        | N/A                        | N/A              | Massive                        | Eventual      |
-| **Default Probability Models**       | Predictive data indicating likelihood of merchant default.                      | Intensive        | Write Once with Versioning | Less Frequent    | On Demand                      | Eventual      |
-| **Fees Configuration Data**          | Fee structures, rate cards, and rules used for pricing and billing.             | Intensive        | N/A                        | N/A              | On Demand                      | Strong        |
-| **Empirical Fees Data**              | Observed or calculated fees based on historical transactions.                   | Intensive        | N/A                        | N/A              | On Demand                      | Eventual      |
-| **Reference Attributes**             | Shared attributes used across domains such as risk types, fee categories, etc.  | Intensive        | N/A                        | N/A              | On Demand                      | Eventual      |
