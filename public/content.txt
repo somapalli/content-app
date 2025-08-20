@@ -14,119 +14,49 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-//=============================================================================
-// Database Schema for Merchant Pricing
-// Version: 5.0 (Flexible/Normalized Model with Sample Data)
-//
-// NOTE: In this design, cost_basis is used by all three pricing tables.
-// This requires creating two rows in merchant_markup and merchant_card_rate
-// to represent one complete pricing rule (e.g., one for PERCENT, one for PER_TXN).
-//=============================================================================
+APIGEE to Transmit Security – Migration Requirements
+1. Authentication
 
+The system must support two-legged authentication for secure communication.
 
-//=============================================================================
-// LOOKUP TABLES
-//=============================================================================
+2. Client Credentials & Configuration Migration
 
-Table pricing_method {
-  method_id int [pk, increment]
-  method_code varchar(50) [unique, not null]
-  method_name varchar(100)
-}
+Historical client IDs and secrets must be migrated.
 
-Table card_type {
-  card_type_id int [pk, increment]
-  card_code varchar(20) [unique, not null]
-  card_name varchar(100)
-}
+Associated configurations such as scope and token lifetime must be preserved.
 
-Table cost_basis {
-  basis_id int [pk, increment]
-  basis_code varchar(20) [unique, not null]
-  basis_name varchar(100)
-  Note: "Used by markup, rate, and fee tables."
-}
+Migration must apply to both existing applications and product subscriptions.
 
-Table fee_type {
-  fee_type_id int [pk, increment]
-  fee_code varchar(50) [unique, not null]
-  fee_name varchar(100)
-}
+3. Session Continuity
 
-Table transaction_type {
-  transaction_type_id int [pk, increment]
-  type_code varchar(10) [unique, not null]
-  type_name varchar(100) [not null]
-}
+Active token sessions must remain valid and continue to function seamlessly during the transition to the Transmit platform.
 
-//=============================================================================
-// CORE TABLES
-//=============================================================================
+4. Client ID Management
 
-Table merchant {
-  merchant_id int [pk, increment]
-  merchant_code varchar(100) [unique]
-  name varchar(255) [not null]
-  status varchar(20) [not null, default: 'ACTIVE']
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp
-}
+The system must support creating new client IDs for product subscriptions through APIs.
 
-Table merchant_pricing_profile {
-  profile_id int [pk, increment]
-  merchant_id int [ref: > merchant.merchant_id, not null]
-  method_id int [ref: > pricing_method.method_id, not null]
-  currency_code char(3) [not null, default: 'USD']
-  effective_from date [not null]
-  effective_to date
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp
-  Indexes {
-    (merchant_id) [name: 'idx_mpp_merchant_id']
-  }
-}
+5. Token & Encryption Standards
 
-Table merchant_markup {
-  markup_id int [pk, increment]
-  profile_id int [ref: > merchant_pricing_profile.profile_id, not null]
-  transaction_type_id int [ref: > transaction_type.transaction_type_id, not null]
-  basis_id int [ref: > cost_basis.basis_id, not null]
-  amount decimal(18, 4) [not null]
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp
-  note: "Requires TWO rows (one for PERCENT, one for PER_TXN) to define a complete markup for a single transaction type."
-  Indexes {
-    (profile_id, transaction_type_id, basis_id) [unique, name: "uq_markup_profile_txn_basis"]
-  }
-}
+The platform must support JWE (JSON Web Encryption) and JWS (JSON Web Signature) configurations.
 
-Table merchant_card_rate {
-  rate_id int [pk, increment]
-  profile_id int [ref: > merchant_pricing_profile.profile_id, not null]
-  card_type_id int [ref: > card_type.card_type_id, not null]
-  transaction_type_id int [ref: > transaction_type.transaction_type_id, not null]
-  basis_id int [ref: > cost_basis.basis_id, not null]
-  amount decimal(18, 4) [not null]
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp
-  note: "Requires TWO rows (one for PERCENT, one for PER_TXN) to define a complete rate for a single card type."
-  Indexes {
-    (profile_id, card_type_id, transaction_type_id, basis_id) [unique, name: "uq_rate_profile_card_txn_basis"]
-  }
-}
+The platform must provide endpoints to:
 
-Table merchant_fee {
-  merchant_fee_id int [pk, increment]
-  profile_id int [ref: > merchant_pricing_profile.profile_id, not null]
-  fee_type_id int [ref: > fee_type.fee_type_id, not null]
-  basis_id int [ref: > cost_basis.basis_id, not null]
-  amount decimal(18, 4) [not null]
-  currency_code char(3) [not null, default: 'USD']
-  effective_from date [not null]
-  effective_to date
-  created_at timestamp [not null, default: `now()`]
-  updated_at timestamp
-  Indexes {
-    (profile_id, fee_type_id, effective_from) [unique, name: "uq_fee_profile_type_from"]
-  }
-}
+Generate tokens
+
+Introspect tokens
+
+Revoke tokens
+
+Decrypt JWE tokens
+
+6. Certificate Support
+
+The system must support JWS using customer-provided client certificates for encryption.
+
+7. Logging & Debugging
+
+The platform must provide robust logging capabilities.
+
+It must support debugging of token authentication issues.
+
+It must support debugging of provisioning issues.
