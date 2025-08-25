@@ -14,3 +14,22 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Status Update – FISERV Migration
+
+Migration activities completed successfully.
+
+Hierarchy changes applied for 3 accounts.
+
+Banking account validated.
+
+Data migration from Infinicept to Tempus successfully completed for 3 customers.
+
+Data loaded into Tempus GTI and validated through the internal portal.
+
+Customer was able to initiate a transaction today from Mobile Accept.
+
+Customer successfully logged into the Scepter External portal and viewed both the newly submitted transactions and previously migrated data.
+
+Next Steps
+
+Tomorrow we will validate the settlement and funding steps for transactions submitted on Sunday.
