@@ -14,36 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Status Report
-
-Transaction Processing
-
-Transaction submitted on Sunday (DFM file received Monday) was processed successfully today, and a NACHA file was generated for merchant settlement.
-
-Transaction submitted on Monday (DFM file received Tuesday) was placed on hold for review and is planned for release tomorrow as part of the hold and release functionality test.
-
-Underwriting & Provisioning
-
-Two applications submitted yesterday for underwriting approval were approved today.
-
-Provisioning steps completed successfully, including:
-
-Fiserv merchant account creation
-
-Tempus onboarding setup
-
-Online enablement
-
-User was able to log in to the external portal and validate successfully.
-
-Verified that the Activate button is enabled in the mobile app.
-
-ACH File Processing
-
-ACH rejection file sent to Tempus from ABC failed due to PGP encryption not enabled.
-
-A request has been opened with ABC to resolve this issue.
-
-Next Steps
-
-Additional test scenarios (risk exception, credit adjustment, and device fees) will be executed tomorrow.
