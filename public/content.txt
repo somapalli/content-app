@@ -14,16 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Vendor Technology Gaps – Ledger Component
-
-Monolithic Architecture and Performance Limitations
-The current vendor solution is built on a monolithic architecture that processes data serially, resulting in scalability and concurrency challenges. As transaction volumes and business demands grow, the system struggles to maintain performance and throughput.
-
-Relational Database Constraints
-The ledger relies on a traditional relational database that performs mass updates to manage record statuses (e.g., sweep pending, swept). This approach conflicts with the core principle of an immutable ledger design, limiting auditability and data integrity.
-
-Custom Dispatch Framework Limiting Cloud Readiness
-Ledger requests are handled through a custom-built dispatcher rather than modern, cloud-native event streaming or messaging solutions. This architecture restricts elasticity, cloud adoption, and the ability to leverage managed scalability and observability tools.
-
-Lack of Account Balance Capability
-The existing ledger lacks built-in account balance functionality—an essential yet complex aspect of ledger systems. The absence of real-time balance management increases manual effort, introduces reconciliation challenges, and complicates payout and adjustment processes.
