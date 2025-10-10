@@ -14,3 +14,14 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Ledger Development Location and Approach
+
+The new ledger component should be developed from scratch using a modern technology stack, rather than extending the vendor’s existing ledger solution. From a technical standpoint, it can be developed either by the vendor or in-house; however, developing it on-premise is preferred due to the following reasons:
+
+Cloud Readiness and Approved Technology Stack – Building the solution internally ensures alignment with the organization’s approved, cloud-ready technology stack and architectural standards, offering better control and maintainability than vendor-managed environments.
+
+Leverage Internal Domain Expertise – Internal development allows leveraging deep business and domain knowledge to design a ledger that accurately meets financial, operational, and compliance requirements.
+
+Integration with Risk Management Framework – Developing within the organization enables direct integration with the existing enterprise risk management and control frameworks to strengthen reliability and audit readiness.
+
+Seamless Data and System Integration – Building the ledger in-house allows for easier and more secure integration with other internal systems such as data platforms, general ledger, and reporting solutions.
