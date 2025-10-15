@@ -14,3 +14,38 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+h2. 🛠️ Vulnerability Management – Process Improvement
+
+h3. Objective
+Enhance visibility, accountability, and traceability in the vulnerability management lifecycle between RTB (Run-the-Bank) and CTB (Change-the-Bank) teams.
+
+---
+
+h3. Improved Process Workflow
+
+|| Step || Process Description || Owner || Deliverable / Output ||
+| *1. Vulnerability Notification* | Upon receiving a vulnerability alert, the team logs the issue in the tracking system and classifies it based on criticality and ownership (RTB or CTB). | Security / RTB | Logged vulnerability record |
+| *2. RTB Assessment & Due Date Communication* | If categorized under RTB, the team assesses impact, sets the due date for remediation, and communicates it to all stakeholders. | RTB | Confirmed due date and communication record |
+| *3. POAM Documentation* | RTB team collects confirmation and Change Request (CR) details and records them in the *Plan of Action and Milestones (POAM)* for audit and tracking. | RTB | Updated POAM entry with CR reference |
+| *4. Patch & Remediation Completion* | RTB completes patching or mitigation, validates the fix, and informs the CTB team once the issue is resolved. | RTB | Patch completion and validation report |
+| *5. Validation & Closure* | CTB team verifies the remediation, updates closure details, and marks the vulnerability as closed in the tracking system. | CTB | Closed vulnerability record and validation note |
+
+---
+
+h3. Key Improvements
+* ✅ *Defined Ownership:* Clear distinction between RTB and CTB responsibilities.  
+* 🕒 *Improved Timeliness:* Due dates communicated and tracked proactively.  
+* 🧾 *Better Documentation:* All actions recorded in POAM for transparency and audit readiness.  
+* 🔄 *Cross-Team Validation:* Closure dependent on verification from CTB team.  
+* 📊 *Enhanced Reporting:* Enables leadership to monitor progress and compliance through POAM metrics.
+
+---
+
+h3. RACI Summary
+
+|| Activity || Responsible (R) || Accountable (A) || Consulted (C) || Informed (I) ||
+| Vulnerability identification | Security | RTB Lead | CTB | Leadership |
+| Impact assessment & due date | RTB | RTB Lead | CTB | Security |
+| POAM update | RTB | RTB Lead | CTB | Security / Leadership |
+| Patch & validation | RTB | RTB Lead | CTB | Security |
+| Closure verification | CTB | CTB Lead | RTB | Leadership |
