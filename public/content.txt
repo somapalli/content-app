@@ -21,31 +21,90 @@ Enhance visibility, accountability, and traceability in the vulnerability manage
 
 ---
 
-h3. Improved Process Workflow
-
-|| Step || Process Description || Owner || Deliverable / Output ||
-| *1. Vulnerability Notification* | Upon receiving a vulnerability alert, the team logs the issue in the tracking system and classifies it based on criticality and ownership (RTB or CTB). | Security / RTB | Logged vulnerability record |
-| *2. RTB Assessment & Due Date Communication* | If categorized under RTB, the team assesses impact, sets the due date for remediation, and communicates it to all stakeholders. | RTB | Confirmed due date and communication record |
-| *3. POAM Documentation* | RTB team collects confirmation and Change Request (CR) details and records them in the *Plan of Action and Milestones (POAM)* for audit and tracking. | RTB | Updated POAM entry with CR reference |
-| *4. Patch & Remediation Completion* | RTB completes patching or mitigation, validates the fix, and informs the CTB team once the issue is resolved. | RTB | Patch completion and validation report |
-| *5. Validation & Closure* | CTB team verifies the remediation, updates closure details, and marks the vulnerability as closed in the tracking system. | CTB | Closed vulnerability record and validation note |
+h1. Epic: Observability Readiness for Business Services  
+*Goal:* Ensure every business service and API is production-ready with standardized SLA definition, monitoring, traceability, performance testing, and a formal Permit to Operate (PTO) process.
 
 ---
 
-h3. Key Improvements
-* ✅ *Defined Ownership:* Clear distinction between RTB and CTB responsibilities.  
-* 🕒 *Improved Timeliness:* Due dates communicated and tracked proactively.  
-* 🧾 *Better Documentation:* All actions recorded in POAM for transparency and audit readiness.  
-* 🔄 *Cross-Team Validation:* Closure dependent on verification from CTB team.  
-* 📊 *Enhanced Reporting:* Enables leadership to monitor progress and compliance through POAM metrics.
+h2. Story 1: Define SLA for the Service  
+*As a* Service Owner  
+*I want* clearly defined SLAs and SLOs for key user journeys, APIs, or business processes  
+*So that* service performance expectations are measurable and aligned with business and operational goals  
+
+*Acceptance Criteria:*  
+- *Given* the service’s primary user journeys are documented  
+- *When* SLOs are defined for availability, latency (p95/p99), error rate, and throughput  
+- *Then* corresponding SLA targets are established per environment (Prod, Non-Prod) using historical or load-test data  
+- SLAs and rationale are documented in the service runbook or README  
+- External SLAs (if any) are captured and mapped to internal SLOs  
+- SLA breach notification and escalation paths are documented in monitoring playbooks  
 
 ---
 
-h3. RACI Summary
+h2. Story 2: Monitoring & Traceability  
+*As a* Developer  
+*I want* all API calls and dependent transactions to be visible and traceable through the observability platform (e.g., Dynatrace)  
+*So that* we can validate performance, reliability, and dependency health in real time  
 
-|| Activity || Responsible (R) || Accountable (A) || Consulted (C) || Informed (I) ||
-| Vulnerability identification | Security | RTB Lead | CTB | Leadership |
-| Impact assessment & due date | RTB | RTB Lead | CTB | Security |
-| POAM update | RTB | RTB Lead | CTB | Security / Leadership |
-| Patch & validation | RTB | RTB Lead | CTB | Security |
-| Closure verification | CTB | CTB Lead | RTB | Leadership |
+*Acceptance Criteria:*  
+- *Given* the API or service is deployed in <env>  
+- *When* any transaction or API call is triggered  
+- *Then* it must appear in *Dynatrace* with full trace visibility (entry point → downstream → DB/external services)  
+- Metrics must include latency (p95/p99), error rate, throughput, and dependency call duration  
+- Trace IDs must be correlated across services using standard header propagation (e.g., W3C Trace Context)  
+- Screenshot or trace ID evidence is attached to the story before closure  
+- Missing spans or partial traces are logged as observability gaps and tracked for remediation  
+
+---
+
+h2. Story 3: Performance Testing & Validation  
+*As a* QA or Performance Engineer  
+*I want* performance testing conducted with defined thresholds for throughput, latency, and error rate  
+*So that* the service meets SLA/SLO expectations before going live  
+
+*Acceptance Criteria:*  
+- *Given* the service endpoints and user journeys are defined  
+- *When* performance tests are executed using load tools (e.g., JMeter, Gatling, Locust)  
+- *Then* the following metrics must be recorded and compared against SLOs:  
+  - Latency (p50/p95/p99)  
+  - Throughput (TPS)  
+  - Error rate (%)  
+  - CPU/memory utilization and scaling behavior  
+- Test results and baselines are stored in the runbook or Confluence performance dashboard  
+- Any deviation greater than 5% from defined SLOs must have remediation actions logged before release  
+- Performance testing evidence is attached prior to PTO approval  
+
+---
+
+h2. Story 4: Permit to Operate (PTO) Readiness  
+*As a* Service Owner  
+*I want* a formal Permit to Operate checklist validated before go-live  
+*So that* the service meets all operational readiness, observability, and reliability standards  
+
+*Acceptance Criteria:*  
+- *Given* SLA, monitoring, traceability, and performance validation are complete  
+- *When* the service is ready for release  
+- *Then* a PTO review is conducted and approved by SRE/Ops  
+- The following artifacts must be attached for PTO approval:  
+  - SLA/SLO document and monitoring setup evidence  
+  - Dynatrace visibility screenshots or trace links  
+  - Performance testing report and metrics baseline  
+  - Runbook (including escalation contacts, alerts, rollback plan, and dashboard links)  
+- PTO approval is captured in Jira or Confluence before production deployment  
+- Any post-deployment reliability issues trigger a PTO review update and RCA documentation  
+
+---
+
+h2. Supporting Artifacts and Templates  
+| Artifact | Description | Owner |
+|-----------|--------------|-------|
+| Runbook / README | Contains service overview, contact info, alert policies, and escalation | Service Owner |
+| SLA / SLO Documentation | Baseline targets, rationale, and measurement sources | Service Owner |
+| Dynatrace Dashboard | Real-time service metrics and dependency traceability | Developer / SRE |
+| Performance Test Summary | Results and comparison against SLO targets | QA / Performance Engineer |
+| PTO Checklist | Final readiness approval record | SRE / Ops Lead |
+
+---
+
+h3. Outcome  
+Each business service that passes these four stories achieves full observability readiness and is eligible for production deployment with a valid Permit to Operate (PTO).
