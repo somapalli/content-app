@@ -14,3 +14,4 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+This is a different scenario than the one we discussed with the team a few days ago. We need to create test merchant accounts that QA can use to initiate transactions through the mobile app and validate end-to-end flows during post-production validation. Finance and Retail have already confirmed that we can onboard merchants using the Fiserv test account. However, we still cannot validate a few scenarios—specifically chargebacks and miscellaneous fees. To cover chargeback workflows (document uploads, notes, status changes, etc.) we propose generating mock chargeback entries for the test merchant in the data lake so the Chargeback Management functionality can be fully exercised. For miscellaneous fees, we will reuse the same test merchant and simulate the fee behavior as much as possible without creating real transaction entries.
