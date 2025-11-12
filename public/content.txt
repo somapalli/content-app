@@ -14,32 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Lead Responsibilities (Onsite/Offshore)
-
-
-Story Understanding and Refinement – Actively participate in refinement sessions to thoroughly understand user stories from a development and technical implementation perspective.
-
-
-Architecture and Detailed Design – Develop architecture solutions and detailed design documents based on functional specifications. Ensure the design artifacts are well-documented and stored within each repository for future reference.
-
-
-Business and Customer Context – Gain a strong understanding of business objectives and customer needs to ensure technical solutions align with overall product goals.
-
-
-Technical Guidance and Troubleshooting – Provide technical assistance to the team for resolving complex issues, debugging, and ensuring smooth delivery.
-
-
-Non-Functional Requirements (NFRs) – Define and deliver technology solutions that meet performance, scalability, availability, and SLA expectations.
-
-
-Hands-On Development – Be actively involved in coding and debugging, especially for production issues or critical defect resolutions.
-
-
-Vulnerability Management – Oversee and ensure timely remediation of all vulnerabilities for the repositories under your ownership, maintaining compliance with security standards.
-
-
-Technology Delivery Requests – Manage Technology Delivery Fulfillment (TDF) and Permit-to-Operate (PTO) requests as part of the release readiness process.
-
-
-Observability and Monitoring – Establish and maintain observability standards for QA and production environments, including proactive monitoring, alert configurations, and performance tracking.
-
