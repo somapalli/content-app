@@ -14,3 +14,185 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Use Case 1: Event-Driven Orchestration of Merchant Onboarding Workflow
+
+Business Need:
+Merchant onboarding involves 10–15 microservices (KYC, KYB, Fraud, Bank Verification, Underwriting, Pricing, Document Upload, Contracting, Provisioning, etc.) that require orchestrated execution with conditional logic.
+
+Challenges Today:
+
+Complex retry logic in each service
+
+Hard to track failures across services
+
+No single source of truth for end-to-end workflow state
+
+Manual reprocessing required for failures
+
+Idempotency issues across asynchronous systems
+
+Why Temporal:
+
+Orchestrate all steps through code; Temporal manages state automatically
+
+Automatic retries with exponential backoff
+
+Compensation logic for rollbacks (undo create-merchant, undo price setup, undo provision steps)
+
+Workflow execution is durable and continues even after failures
+
+Built-in visibility into each onboarding step
+
+Outcome:
+A resilient onboarding pipeline where failures self-heal, partial completions can be compensated, and business teams get full transparency into workflow state.
+
+Use Case 2: Distributed Saga for Payments and Ledger Events
+
+Business Need:
+Processing payment events from Payment Gateway → Fraud → Underwriting → Ledger → Funding requires strict consistency and recoverability.
+
+Challenges Today:
+
+Complex sagas manually implemented in microservices
+
+Difficulty coordinating compensating transactions
+
+Handling retries without double-posting ledger records
+
+Ensuring at-least-once → exactly-once semantics
+
+Why Temporal:
+
+Native Saga pattern support
+
+Guarantees workflow correctness even with retries and restarts
+
+Ensures idempotent activity execution
+
+Can orchestrate ledger entries safely with retry + visibility
+
+Outcome:
+A consistent and resilient platform for end-to-end payment processing with guaranteed idempotent ledger updates.
+
+Use Case 3: Resilient API Orchestration for Underwriting
+
+Business Need:
+Underwriting calls multiple downstream systems (credit bureau, fraud, scoring models, KYC refresh, risk engine) and must maintain state.
+
+Pain Points Without Temporal:
+
+APIs fail intermittently → requires manual retry logic
+
+In-flight requests lost if pod crashes
+
+Difficult rollback logic if scoring or decision fails
+
+Why Temporal:
+
+Temporal guarantees workflow state durability
+
+Built-in retries, heartbeats, failure detection
+
+Workflow continues from last step without manual tracking
+
+Compensation logic for retraction of underwriting decisions
+
+Outcome:
+A self-healing underwriting flow that significantly reduces manual operational workload.
+
+Use Case 4: Multi-Step Data Pipeline Orchestration
+
+Examples:
+
+Batch → Stream → Transform → Store
+
+Daily merchant settlement processing
+
+Chargeback lifecycle with multi-stage workflows
+
+Document processing (OCR → Classification → Validation → Storage)
+
+Pain Points:
+
+Lack of end-to-end visibility
+
+Hard-coded dependency sequencing
+
+Operational failures require reprocessing by Ops Team
+
+Why Temporal:
+
+Workflow becomes the single orchestrator of all steps
+
+Temporal persists progress, preventing restart from scratch
+
+Provides audit trail and metrics
+
+Supports millions of steps per day (scales horizontally)
+
+✅ 3. Architectural Benefits
+A. Temporal as a Resilient Orchestration Engine
+
+Automatic retries
+
+Timeout management
+
+Compensating transactions (Saga pattern)
+
+State durability across pod failures
+
+Built-in idempotency guarantees
+
+Contrast: Custom orchestration in microservices → 10x more code, more bugs, inconsistent implementations.
+
+B. Event-Driven Workflows
+
+Temporal integrates with:
+
+Kafka
+
+Event Hub
+
+SQS
+
+Internal event buses
+
+Workflows can be triggered by events like:
+
+Merchant_Application_Submitted
+
+Transaction_Authorization_Received
+
+Chargeback_Filed
+
+Settlement_Completed
+
+Temporal handles the orchestration and state management while Kafka handles event transport.
+
+C. Scalable Execution Model
+
+Temporal splits processing into:
+
+Workflow workers (stateful execution logic)
+
+Activity workers (actual business operations)
+
+Scale horizontally based on workload.
+
+Temporal supports millions of workflows per day with sub-second latency.
+
+D. Operational Visibility
+
+Temporal UI gives:
+
+Step-by-step workflow history
+
+Failure reason and stacktrace
+
+Retry status and run history
+
+Compensation steps triggered
+
+SLA and timing metrics
+
+Greatly improves monitoring for onboarding, underwriting, payments, etc.
