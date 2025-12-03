@@ -14,185 +14,301 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Use Case 1: Event-Driven Orchestration of Merchant Onboarding Workflow
+Below is a **clean, detailed, README-style analysis** of your data-flattening requirements, written in **Markdown format** so you can paste it directly into **Confluence, GitHub, or internal documentation**.
 
-Business Need:
-Merchant onboarding involves 10–15 microservices (KYC, KYB, Fraud, Bank Verification, Underwriting, Pricing, Document Upload, Contracting, Provisioning, etc.) that require orchestrated execution with conditional logic.
+---
 
-Challenges Today:
+# **README – Data Flattening Requirements for Merchant Solutions Platform**
 
-Complex retry logic in each service
+## **1. Overview**
 
-Hard to track failures across services
+The Merchant Solutions platform contains distributed datasets across onboarding, underwriting, transaction processing, settlement, chargeback management, and merchant profile services. These datasets reside in operational schemas optimized for transaction processing, not analytics.
 
-No single source of truth for end-to-end workflow state
+To support enterprise reporting, dashboarding, fraud analysis, and portfolio management, a **flattened analytical data model** is required.
+This README summarizes the business requirements, personas, data domains, and technical expectations for building a unified flattened dataset.
 
-Manual reprocessing required for failures
+---
 
-Idempotency issues across asynchronous systems
+## **2. Business Objectives**
 
-Why Temporal:
+* Provide consolidated analytics across onboarding, underwriting, merchant profile, transactions, and settlements.
+* Enable business dashboards for sales, portfolio, risk, fraud, and operations teams.
+* Support exportable reports (PDF, CSV) for compliance, business operations, and external stakeholders.
+* Detect fraud anomalies and pipeline opportunities through unified data.
+* Create a future-ready scalable data foundation for downstream integrations (BI tools, AI/ML models, risk engines).
 
-Orchestrate all steps through code; Temporal manages state automatically
+---
 
-Automatic retries with exponential backoff
+## **3. Personas & Consumer Groups**
 
-Compensation logic for rollbacks (undo create-merchant, undo price setup, undo provision steps)
+The flattened dataset must serve multiple user types:
 
-Workflow execution is durable and continues even after failures
+| Persona                     | Needs                                                           |
+| --------------------------- | --------------------------------------------------------------- |
+| **Product Analysts**        | Trend reports, merchant performance, conversion funnel analysis |
+| **Portfolio Managers**      | Portfolio profitability, merchant segmentation, fee summaries   |
+| **Sales & Channel Teams**   | Onboarded merchant insights, industry performance               |
+| **Fraud Analysts**          | Suspicious transaction identification, anomaly detection        |
+| **Risk/Underwriting Teams** | Monitoring merchant health, chargebacks, settlement events      |
+| **Segment Managers**        | Merchant grouping by segment, MCC, store hierarchy              |
 
-Built-in visibility into each onboarding step
+---
 
-Outcome:
-A resilient onboarding pipeline where failures self-heal, partial completions can be compensated, and business teams get full transparency into workflow state.
+## **4. Data Domains to be Flattened**
 
-Use Case 2: Distributed Saga for Payments and Ledger Events
+A complete analytics layer must unify the following source domains:
 
-Business Need:
-Processing payment events from Payment Gateway → Fraud → Underwriting → Ledger → Funding requires strict consistency and recoverability.
+### **4.1 Onboarding Data**
 
-Challenges Today:
+* Merchant ID, Store ID
+* Business details, Industry, MCC
+* Sales pipeline data
+* Onboarding timestamps, status, channel, segment
 
-Complex sagas manually implemented in microservices
+### **4.2 Underwriting Data**
 
-Difficulty coordinating compensating transactions
+* UW decisioning results
+* Risk scores, KYB/KYC outputs
+* Approval/decline workflow data
 
-Handling retries without double-posting ledger records
+### **4.3 Merchant Profile**
 
-Ensuring at-least-once → exactly-once semantics
+* Legal entity, ownership data
+* Contact information
+* Fee configuration
+* Pricing model (Cost-Plus, Blended)
+* Settlement preferences
 
-Why Temporal:
+### **4.4 Transaction Data**
 
-Native Saga pattern support
+* Transaction ID, Merchant ID, Store ID
+* Authorization, clearing, settlement timestamps
+* Amount, card type, entry mode, device
+* Fees applied per transaction
 
-Guarantees workflow correctness even with retries and restarts
+### **4.5 Fee Data**
 
-Ensures idempotent activity execution
+* Markup fees, interchange, processor fees
+* Monthly/annual platform fees
+* Event-driven fees (chargeback, PCI fees, etc.)
 
-Can orchestrate ledger entries safely with retry + visibility
+### **4.6 Settlement Data**
 
-Outcome:
-A consistent and resilient platform for end-to-end payment processing with guaranteed idempotent ledger updates.
+* Daily settlement summary
+* Batch vs real-time settlement streams
+* Net funded amounts
 
-Use Case 3: Resilient API Orchestration for Underwriting
+### **4.7 Chargeback Data**
 
-Business Need:
-Underwriting calls multiple downstream systems (credit bureau, fraud, scoring models, KYC refresh, risk engine) and must maintain state.
+* Reason codes
+* Dispute life cycle stages
+* Amounts and outcomes
 
-Pain Points Without Temporal:
+---
 
-APIs fail intermittently → requires manual retry logic
+## **5. Reporting & Dashboard Requirements**
 
-In-flight requests lost if pod crashes
+### **5.1 Sales & Merchant Reports**
 
-Difficult rollback logic if scoring or decision fails
+* Onboarded merchant count by:
 
-Why Temporal:
+  * Industry
+  * Sales volume
+  * Funnel/pipeline stage
+* Pipeline performance conversion
+* Ability to filter by merchant, store, MCC, date range
 
-Temporal guarantees workflow state durability
+---
 
-Built-in retries, heartbeats, failure detection
+### **5.2 Fee & Revenue Reporting**
 
-Workflow continues from last step without manual tracking
+* Total fees collected by:
 
-Compensation logic for retraction of underwriting decisions
+  * Merchant
+  * Store
+  * Segment
+  * Fee type
+* Revenue trend dashboards
+* Ability to reconcile fees to transactions and settlement
 
-Outcome:
-A self-healing underwriting flow that significantly reduces manual operational workload.
+---
 
-Use Case 4: Multi-Step Data Pipeline Orchestration
+### **5.3 Transaction Summary Reporting**
 
-Examples:
+* Real-time + batch consolidated view
+* Mandatory inclusion of all front-end transaction attributes
+* Trend dashboard: daily, weekly, monthly metrics
+* Drill-down capability:
 
-Batch → Stream → Transform → Store
+  * Merchant → Store → MCC → Transaction
 
-Daily merchant settlement processing
+---
 
-Chargeback lifecycle with multi-stage workflows
+### **5.4 Settlement Reporting**
 
-Document processing (OCR → Classification → Validation → Storage)
+* Daily settlement activity
+* Real-time settlement events
+* Summaries by merchant/store/MCC
+* Export capability (CSV/PDF)
 
-Pain Points:
+---
 
-Lack of end-to-end visibility
+### **5.5 Chargeback Reporting**
 
-Hard-coded dependency sequencing
+* Chargeback count and amount trends
+* Drill-down by merchant, store, MCC, date
+* Chargeback stage summary
+* Export functions
 
-Operational failures require reprocessing by Ops Team
+---
 
-Why Temporal:
+### **5.6 Fraud Analytics**
 
-Workflow becomes the single orchestrator of all steps
+* Suspicious activity detection
+* Transaction anomaly patterns
+* Reporting for fraud events and flags
+* Alerts for abnormal spend or velocity
 
-Temporal persists progress, preventing restart from scratch
+---
 
-Provides audit trail and metrics
+### **5.7 Operational Controls – Hold & Release**
 
-Supports millions of steps per day (scales horizontally)
+* Transaction hold and release reporting
+* Merchant-level hold monitoring
+* Risk-based holds (automated/manual)
+* Ability to analyze:
 
-✅ 3. Architectural Benefits
-A. Temporal as a Resilient Orchestration Engine
+  * Reasons
+  * Time to release
+  * Impact analysis
 
-Automatic retries
+---
 
-Timeout management
+## **6. Data Flattening Functional Requirements**
 
-Compensating transactions (Saga pattern)
+A flattened data layer must provide:
 
-State durability across pod failures
+### **6.1 Unified Analytical Views**
 
-Built-in idempotency guarantees
+* Create consolidated **merchant-centric** and **transaction-centric** tables.
+* Merge onboarding, profile, underwriting, settlement, and transaction details.
 
-Contrast: Custom orchestration in microservices → 10x more code, more bugs, inconsistent implementations.
+### **6.2 Mandatory Field Coverage**
 
-B. Event-Driven Workflows
+* All front-end UI fields used in reporting must be present.
+* Include operational metadata:
 
-Temporal integrates with:
+  * Statuses, timestamps, event markers
+  * Error codes, retry indicators
+  * Risk flags
 
-Kafka
+### **6.3 Drill-down Capability**
 
-Event Hub
+Support multi-level analytics:
 
-SQS
+```
+Merchant
+   └── Store
+         └── MCC
+               └── Transaction
+```
 
-Internal event buses
+### **6.4 Flexible Filtering**
 
-Workflows can be triggered by events like:
+Dashboards must support filters by:
 
-Merchant_Application_Submitted
+* Merchant
+* Store
+* Location
+* Segment
+* MCC
+* Fee type
+* Date range
 
-Transaction_Authorization_Received
+### **6.5 Export & Accessibility**
 
-Chargeback_Filed
+* PDF export
+* CSV export
+* API-driven or BI-driven data access
 
-Settlement_Completed
+### **6.6 Near Real-Time Support**
 
-Temporal handles the orchestration and state management while Kafka handles event transport.
+* Real-time ingestion for fraud and transaction dashboards
+* Daily batch for settlement and chargeback datasets
 
-C. Scalable Execution Model
+### **6.7 High Data Quality Expectations**
 
-Temporal splits processing into:
+* Deduplication
+* Idempotent ingestion
+* Referential integrity
+* Consistent merchant lookup keys
 
-Workflow workers (stateful execution logic)
+---
 
-Activity workers (actual business operations)
+## **7. Recommended Flattened Data Model (High-Level)**
 
-Scale horizontally based on workload.
+### **7.1 Core Tables**
 
-Temporal supports millions of workflows per day with sub-second latency.
+| Table Name          | Purpose                                                   |
+| ------------------- | --------------------------------------------------------- |
+| `merchant_flat`     | Unified merchant & onboarding data                        |
+| `underwriting_flat` | Underwriting decisions, risk assessments                  |
+| `transaction_flat`  | Full transaction lifecycle (auth → clearing → settlement) |
+| `settlement_flat`   | Daily/real-time settlement summaries                      |
+| `fees_flat`         | All associated fee records joined with transactions       |
+| `chargeback_flat`   | Chargeback lifecycle and summaries                        |
+| `fraud_flat`        | Fraud flags, anomaly indicators                           |
 
-D. Operational Visibility
+---
 
-Temporal UI gives:
+## **8. Technical Architecture Considerations**
 
-Step-by-step workflow history
+### **8.1 Data Pipeline**
 
-Failure reason and stacktrace
+* Ingest operational data via:
 
-Retry status and run history
+  * Event streams
+  * API ingestion
+  * Database extract
+* Apply transformations:
 
-Compensation steps triggered
+  * Standardization
+  * Deduplication
+  * Type harmonization
+* Build flattened tables using:
 
-SLA and timing metrics
+  * ETL/ELT (Spark, Databricks, Flink, Hadoop)
+  * Materialized views or snapshot tables
 
-Greatly improves monitoring for onboarding, underwriting, payments, etc.
+---
+
+## **9. Risks & Challenges**
+
+| Risk                            | Impact                        | Mitigation                     |
+| ------------------------------- | ----------------------------- | ------------------------------ |
+| Inconsistent merchant/store IDs | Incorrect joins               | Enforce master data management |
+| Missing front-end fields        | Gaps in reporting             | Field traceability matrix      |
+| High data volume                | Query performance degradation | Partitioning + indexing        |
+| Real-time requirements          | Latency issues                | Stream-first ingestion         |
+
+---
+
+## **10. Summary**
+
+This data-flattening initiative enables the platform to:
+
+* Provide 360° analytics for onboarding, underwriting, transactions, and risk
+* Offer standardized dashboards for sales, portfolio, fraud, and operations
+* Support real-time fraud detection and merchant-level insights
+* Become foundation for AI/ML scoring, predictive analytics, and automated decisioning
+
+---
+
+If you want, I can also generate:
+
+✅ A **full data model (ERD + table definitions)**
+✅ A **Confluence-ready page with sections & templates**
+✅ A **PowerPoint executive summary**
+✅ A **BRD format** version for business stakeholders
+
+Just tell me what you want next.
