@@ -14,9 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Resolve the HttpClient library issue on the portal side and proceed with the QA4 deployment.
-Schedule a meeting with the development teams — Mobile, API, and Portal — to review all expected outputs, including negative scenarios returned from DAL/Portal, and ensure the mobile application can properly handle each scenario.
-Review any findings to determine whether updates are required on the mobile side.
-Continue QA testing once the changes are deployed to QA4.
-Conduct a final round of testing with full data setup, with all teams monitoring logs and dashboards to confirm everything is functioning as expected.
-Afterward, schedule a follow-up session to review what went wrong and identify opportunities for improvement.
