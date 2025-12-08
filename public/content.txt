@@ -14,3 +14,71 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+# 🧭 Architecture Document Generation Prompt for Copilot
+
+You are an enterprise architecture assistant.  
+Create a professionally written architecture document based on the details provided.  
+Follow the required structure strictly and do not add fictitious content.  
+If any detail is missing, state assumptions clearly.
+
+---
+
+## 📌 Context
+We are designing a **Unified Merchant Data Model** for the Merchant Solutions Platform.  
+The model integrates these conceptual entities:
+
+- **U = Users** (internal/external)  
+- **M = Merchants**  
+- **E = Entitlements / Permissions**  
+- **T = Transactions / Terminals**
+
+Key use cases include:
+
+1. Enforcing permissions for merchant access.  
+2. Consolidated merchant profile with search.  
+3. Managing merchant configuration and features.  
+4. Viewing merchant channel enablement and system configuration.  
+5. Controlling transaction access based on entitlements.
+
+---
+
+## 📌 Task
+Create a complete architecture document using the exact sections listed below.  
+Each section must be written clearly, professionally, and suitable for leadership or architecture review boards.
+
+---
+
+## 📌 Required Output Structure
+
+### **1. Title**
+Provide a precise, descriptive title for the architecture document.
+
+### **2. Context / Background**
+Explain why this architecture is needed, challenges with the current state, and business/technical motivations.
+
+### **3. Problem Statement / Objective**
+Describe the business and technical problem being solved and articulate the objectives of the unified data model.
+
+### **4. Proposed Solution / High-Level Design**
+Explain the proposed architecture, including conceptual entities (U, M, E, T) and their interactions.  
+Summarize capabilities enabled by the solution.
+
+### **5. Key Design Decisions & Trade-offs**
+List 3–5 critical design decisions with rationale, pros/cons, and trade-offs.
+
+### **6. Assumptions & Constraints**
+Document assumptions, dependencies, compliance needs, performance expectations, or any constraints.
+
+---
+
+## 📌 Formatting Requirements
+- Use **Markdown headings**, sub-headings, and bullets.  
+- Write in a **professional architecture-document tone**.  
+- Keep explanations crisp but meaningful.  
+- Do **not fabricate** technical systems or details not provided.  
+- If a detail is missing, add an **Assumption** subsection.
+
+---
+
+## 📌 Final Instruction
+Provide the complete architecture document in one output.
