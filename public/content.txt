@@ -14,3 +14,23 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+4.2 Key Capabilities Enabled by the Model
+1. Merchant Permission Enforcement
+
+Standardized entitlement layer allowing internal and external users to access merchant data securely.
+
+2. Consolidated Merchant 360° View
+
+A unified representation of merchant profile, hierarchy, capabilities, and operational attributes.
+
+3. Feature & Configuration Management
+
+Centralized enable/disable controls for merchant features (e.g., digital onboarding flags, settlements, pricing, etc.).
+
+4. Channel Enablement Visibility
+
+Real-time view of which channels a merchant is enabled for (web, mobile, API, POS, partner applications).
+
+5. Transaction-Level Access Control
+
+Users access transaction data only for merchants they are authorized to view.
