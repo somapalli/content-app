@@ -14,6 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-I want to share that the mobile team has completed a code analysis, and given the multiple layers of integration, we wanted to ensure everything is handled correctly. As part of the analysis, we identified a scenario where the portal sends an OTP failure status. Although this scenario is extremely unlikely, when it occurs, no error message is displayed during login. QA is unable to reproduce this issue unless chaos testing is performed, as it is a very rare edge case.
-
-The effort to address this is moderate, but it would require additional time to test all possible scenarios and devices. Since this behavior already exists in production, we wanted to bring this to your attention so you can determine whether this should be prioritized. Our recommendation is to proceed with the current production change and handle this issue separately, as it is not part of the current release and was discovered only during the code analysis.
