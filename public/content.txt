@@ -14,9 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Merchant Domain Component	BIAN Service Domains	Detailed Description
-Merchant Entity & Hierarchy	Party Data Management, Customer Profile, Location Data Management	Manages party identity, KYB, hierarchies, segmentation, and store locations.
-Merchant Accounts & Configuration	Account Management, Product Instance, Customer Access Entitlement, Contact Handler, Service Provider Management	MID lifecycle, entitlements, device configuration, and processor routing.
-Contracts, Pricing & Fees	Agreement Management, Pricing, Fee Administration	Commercial terms, pricing engines, fee application.
-Transactions (Card Payment Lifecycle)	Card Transaction, Financial Transaction Capture, Ledger Consolidation, Card Case	Card authorization → clearing → settlement lifecycle, ledger posting, chargebacks.
-Funding & Settlement	Clearing & Settlement, Payment Execution, Deposits & Cash Management, Collateral Asset Administration, Balance Sheet Management	Payouts to merchant accounts, reserves/holdbacks, settlement cycle
