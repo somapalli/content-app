@@ -14,4 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Yes, we will regroup to discuss this. My understanding is that Dynatrace does not capture every transaction and instead relies on sampling and aggregating transactions across different time windows, which may not always reflect the true volume. In the past, we created a Tableau report that reads data from the payload—this might be something we can leverage to estimate TPS during peak volumes. We also need to enhance our observability approach using the enterprise-standard telemetry framework being recommended. This is an area we should review together to determine how we can improve going forward.
