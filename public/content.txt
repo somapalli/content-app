@@ -14,3 +14,65 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Here is the rewritten paragraph **plus the full KT plan in clean Markdown format**:
+
+---
+
+## **Rewritten Paragraph**
+
+Based on my experience, an effective knowledge-transfer process begins with a focused KT phase delivered by the existing crew, followed by 1–2 sprints where the new crew takes on the actual work. During these sprints, the old crew reviews worksets, code changes, and design decisions to ensure the new team fully understands the functional flows, technical components, and expected standards. This approach ensures a smooth transition of responsibilities with ongoing support from the existing team.
+
+---
+
+## **Knowledge Transfer (KT) Plan**
+
+### **Objective**
+
+Ensure the new crew gains complete functional, technical, and operational understanding so they can confidently take over delivery responsibilities without disruption.
+
+---
+
+### **1. KT Delivery Phase (Week 1)**
+
+* Existing crew conducts structured KT sessions covering:
+
+  * End-to-end workflows
+  * Architecture and integrations
+  * Business rules and domain knowledge
+  * Codebase walkthroughs and design patterns
+  * DevOps, release process, tooling, and quality practices
+* New crew documents learnings and clarifies questions.
+
+---
+
+### **2. Understanding & Validation (End of Week 1 / Early Week 2)**
+
+* New crew summarizes their understanding of:
+
+  * Functional flows
+  * Technical components and ownership boundaries
+  * Expected delivery responsibilities
+* Existing crew reviews and validates understanding.
+* Gaps are identified and addressed before execution starts.
+
+---
+
+### **3. Shadowing & Supported Execution (1–2 Sprints)**
+
+* New crew performs the actual work while observing how the old crew handles execution.
+* Existing crew provides oversight by:
+
+  * Reviewing worksets, JIRA stories, and acceptance criteria
+  * Reviewing code changes and architectural decisions
+  * Providing continuous feedback and guidance
+* Ensures the new crew aligns with standards and gains full confidence.
+
+---
+
+### **Outcome**
+
+By the end of the 1–2 sprint shadowing period, the new crew should be fully enabled to take ownership of the workset with a strong grasp of both functional and technical expectations.
+
+---
+
+If you'd like this converted into a **Confluence-ready page**, **slide format**, or a **formal handoff document**, I can generate that as well.
