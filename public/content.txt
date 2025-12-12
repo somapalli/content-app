@@ -14,3 +14,91 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+
+Key Outcomes & Achievements
+
+Scepter Platform – Retail Payfac & C&IB Modernization
+	•	Led the end-to-end design, delivery, and execution of Scepter MVP 1.1, completing four major releases on schedule in 2024.
+	•	Designed and executed phased migration strategy, successfully migrating 4K Retail Payfac customers from Infinicept to PN Mobile Accept with no customer impact.
+	•	Ensured operational stability and continuity through detailed planning, wave-based execution, and cross-functional coordination. final cleanup wave is scheduled for January 2026.
+	•	Delivered merchant mobile self-enrollment across all branches, routing applications through the Scepter platform and enabling several hundred new merchant applications with improved speed, consistency, and control.
+	•	Advanced Scepter MVP 1.2 to support C&IB client migration, delivering key capabilities including underwriting escalation, TIN match messaging, MDM status in service check, internal service and underwriting portals, portal enhancements, and a new merchant intake form. End-to-end testing and UAT are currently underway.
+
+
+PINACLE Mobile – Platform Stability, Migration & Risk Reduction
+	•	Initiated and led the PINACLE Mobile Persistent Migration program, managing the effort from vendor sourcing and onboarding through proof of concept and production delivery.
+	•	Established a new ETPM under standard engagement, secured technology approvals, and delivered the migration ahead of IBM MFP end-of-life, ensuring ongoing vendor support and regulatory compliance.
+	•	Executed extensive planning, testing, and validation to ensure zero customer disruption, completing the migration successfully with no incidents.
+	•	Partnered with engineering and security teams to significantly reduce low- and medium-severity vulnerabilities, strengthening overall platform security posture.
+
+CAP API – Modernization, Security & Product Expansion
+	•	Delivered major milestones across the CAP API modernization program, including new product launches and enhancements to existing APIs.
+	•	Led the migration from JWS to JWE token encryption, executing extensive planning, customer engagement, lower-environment testing, and contingency strategies.
+	•	Successfully completed two production migration legs using a wave-based approach, minimizing risk and customer impact.
+	•	Led the design and architecture of Payment APIs integrated with the ICON framework, ensuring scalability, reliability, and alignment with PINACLE channels.
+
+⸻
+
+Business Capabilities Delivered
+	•	Token Encryption & Reader API: Migrated from JWS to JWE for stronger security; enabled optional JWE decryption to support workflow parameter retrieval.
+	•	ePayments API (Zelle): Modernized and integrated with the ICON Payments framework for improved performance and scale.
+	•	Connected Payments API: Enabled check-print payments and manual check submission, expanding client payment options.
+	•	Information Reporting API: Added support for MCA Plus and EURX accounts, balances, and transactions; included incoming low-value payments (SEPA/Bacs) in EUR and GBP.
+	•	Verification Services API: Implemented POST identification/consumer KBA for stronger enrollment authentication.
+	•	Virtual Card API: Added funding account token ID at payment creation and enabled inquiry by token ID.
+	•	Performance Improvements: Tuned Payments, Advanced Receivables, and Information Reporting APIs to improve speed, reliability, and scalability.
+
+⸻
+
+Alignment to PNC Goals
+
+2025 Technology Goal
+
+Resilient Hosting, Security, Risk & Governance, Delivery, Data, Workforce
+	•	Delivered Scepter 1.1 mobile rollout and enabled migration of 4,171 Retail Payfac customers, supporting resilient hosting and platform modernization.
+	•	Directed the PINACLE Mobile migration to the Persistent platform, ensuring vendor support, compliance, and long-term stability.
+	•	Implemented active/active architecture and PCI data redaction, strengthening resiliency, security, and risk management.
+	•	Led CAP API token encryption and successfully migrated two customer legs.
+	•	Proactively managed delivery and operational risk through disciplined planning, compliance checks, rigorous testing, and stakeholder communication.
+
+⸻
+
+PNC Enterprise Risk Goal
+
+Risk Management, Compliance, Controls, Ethics
+	•	Adhered to the Enterprise Risk Management Framework, executing migrations and upgrades using structured risk assessment and mitigation strategies.
+	•	Reduced security vulnerabilities in PINACLE Mobile and CAP APIs, maintaining compliance with internal security policies and regulatory requirements.
+	•	Maintained strong controls, reporting, and escalation mechanisms, ensuring risks were identified, communicated, and remediated in a timely manner.
+	•	Ensured ethical, transparent decision-making aligned with governance standards and enterprise priorities.
+
+⸻
+
+PNC Financial Accountability Goal
+
+Efficient Resource Use, Cost Management, Continuous Improvement
+	•	Delivered complex migrations and platform upgrades on schedule, optimizing resource utilization and minimizing operational disruption.
+	•	Prioritized initiatives with clear business impact, including Scepter migration and CAP API modernization, maximizing enterprise value.
+	•	Implemented process improvements such as merchant self-enrollment, automated provisioning, and API performance tuning to drive efficiency and scalability.
+	•	Balanced delivery speed with cost discipline through phased execution and reuse of enterprise capabilities.
+
+⸻
+
+PNC Leadership Goal
+
+Inclusive Leadership, Values, Change Enablement, Results, Talent Development
+	•	Fostered inclusive, cross-functional collaboration across product, engineering, operations, risk, and vendor partners.
+	•	Led by example, driving complex, high-visibility programs to successful outcomes while supporting enterprise transformation.
+	•	Enabled change through clear communication, transparent decision-making, and proactive stakeholder engagement.
+	•	Delivered results by setting clear objectives, maintaining momentum, and coaching teams through periods of transition.
+	•	Supported talent development by providing feedback, mentoring, and opportunities for increased ownership and growth.
+
+⸻
+
+PNC Customer Focus Goal
+
+Customer Experience, Responsiveness, Value Delivery
+	•	Launched merchant self-enrollment and streamlined onboarding, improving customer experience and reducing friction.
+	•	Enhanced CAP API and PINACLE Mobile capabilities to support new business use cases and deliver greater value to clients.
+	•	Designed platforms and processes with an end-to-end customer experience mindset, proactively anticipating needs and preventing issues.
+	•	Maintained clear, consistent communication with customers and internal partners, ensuring transparency and responsiveness throughout delivery.
+
