@@ -14,30 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-h3. Message Aggregation & Consolidation
-The notification capability must support combining multiple related messages into a single consolidated notification.
-
-Use Cases:
-
-Multiple events generated within a short time window for the same merchant
-
-Multiple reminders or alerts related to the same case or workflow
-
-Batched notifications for internal operational teams
-
-Business Requirements:
-
-Ability to aggregate one or more messages into a single notification
-
-Configurable aggregation window (e.g., X minutes, hourly, daily)
-
-Grouping based on:
-** Merchant or account
-** Case, workflow, or transaction ID
-** Notification type or category
-
-Support summary-style messaging (e.g., “You have 3 pending chargebacks”)
-
-Preserve individual event references within the aggregated message
-
-Maintain auditability for each underlying event
