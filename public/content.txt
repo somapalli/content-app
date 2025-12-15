@@ -14,246 +14,30 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Below is the same **tuned BRD**, rewritten in **Confluence Markup format** so you can paste it directly into Confluence and edit later using markup.
+h3. Message Aggregation & Consolidation
+The notification capability must support combining multiple related messages into a single consolidated notification.
 
----
+Use Cases:
 
-h1. Business Requirements Document (BRD)
-h2. Notification Capability – Merchant Solutions Platform
+Multiple events generated within a short time window for the same merchant
 
----
+Multiple reminders or alerts related to the same case or workflow
 
-h2. 1. Background & Context
+Batched notifications for internal operational teams
 
-The Merchant Solutions platform supports the end-to-end merchant lifecycle, including *sales, onboarding, underwriting, provisioning, card authorization, clearing and settlement, chargebacks, and payouts*.
+Business Requirements:
 
-Across these domains, timely and reliable notifications are critical to:
+Ability to aggregate one or more messages into a single notification
 
-* Inform merchants of status changes and required actions
-* Alert internal teams to workflow milestones and exceptions
-* Meet regulatory, SLA, and audit requirements
-* Reduce manual follow-ups and operational overhead
+Configurable aggregation window (e.g., X minutes, hourly, daily)
 
-A centralized and reusable notification capability is required to support high-volume, event-driven merchant operations.
+Grouping based on:
+** Merchant or account
+** Case, workflow, or transaction ID
+** Notification type or category
 
----
+Support summary-style messaging (e.g., “You have 3 pending chargebacks”)
 
-h2. 2. Business Objective
+Preserve individual event references within the aggregated message
 
-The objective of this initiative is to implement a *generic notification capability* that:
-
-* Supports event-driven, request-driven, and time-based notifications
-* Delivers notifications to both *external merchants* and *internal teams*
-* Ensures high reliability, auditability, and observability
-* Enables business-configurable messaging with governance controls
-* Scales across all Merchant Solutions domains without custom implementations
-
----
-
-h2. 3. Scope
-
-h3. In Scope
-
-* Merchant-facing and internal notifications
-* Email, SMS, push, in-app, and webhook channels
-* Template-driven messaging with localization
-* Delivery tracking, retries, and error handling
-* Reporting and operational visibility
-
-h3. Out of Scope (Phase 1 – if applicable)
-
-* Marketing or promotional campaigns
-* Two-way conversational messaging
-* AI-generated notification content
-
----
-
-h2. 4. Notification Use Cases (Illustrative)
-
-h3. Merchant-Facing
-
-* Application submitted / approved / declined
-* Underwriting additional information required
-* Authorization declined
-* Funding initiated or completed
-* Chargeback received
-* Chargeback evidence due
-* Payout completed
-* Invite-to-pay pending action
-
-h3. Internal-Facing
-
-* Manual underwriting required
-* SLA breach alerts
-* Provisioning failures
-* Chargeback escalation
-* Settlement exceptions
-* System or integration failures
-
----
-
-h2. 5. Triggering Mechanisms
-
-h3. 5.1 Unsolicited (Event-Driven)
-Triggered automatically based on business or system events.
-
-*Examples:*
-
-* Application submitted
-* Authorization declined
-* Chargeback received
-* Settlement failure
-
-*Business Expectations:*
-
-* Near real-time delivery
-* No user action required to initiate
-
----
-
-h3. 5.2 Solicited (Request-Driven)
-Triggered by explicit user or system requests.
-
-*Examples:*
-
-* Merchant uploads chargeback documentation
-* User requests a notification resend
-* Internal team manually triggers a status update
-
-*Business Expectations:*
-
-* Immediate or synchronous acknowledgment
-* Idempotent behavior to prevent duplicate notifications
-
----
-
-h3. 5.3 Scheduled / Time-Based
-Triggered based on time, deadlines, or inactivity.
-
-*Examples:*
-
-* Chargeback evidence due in X days
-* Reminder when no response after X days
-* Invite-to-pay expiration reminders
-* Agreement or document expiration alerts
-
-*Business Expectations:*
-
-* Configurable schedules and timing
-* Business-controlled reminder frequency
-
----
-
-h2. 6. Recipients & Targeting
-
-h3. 6.1 External Recipients (Merchants)
-
-* One or more users within a merchant hierarchy:
-  ** Merchant owner
-  ** Store manager
-  ** Authorized users
-* Support for multi-recipient delivery per notification
-
-h3. 6.2 Internal Recipients
-
-* One or more internal users or roles:
-  ** Operations
-  ** Underwriting
-  ** Risk
-  ** Support
-
-*Business Requirement:*
-Recipients must be dynamically determined based on:
-
-* Merchant hierarchy
-* Role or responsibility
-* Workflow stage
-* Geography or region (if applicable)
-
----
-
-h2. 7. Message Content & Template Management
-
-h3. 7.1 Template Management
-
-* Pre-approved templates per notification type
-* Channel-specific templates (Email, SMS, Push, etc.)
-* Support for dynamic placeholders (e.g., merchant name, case ID, due date)
-
-h3. 7.2 Governance & Approval
-
-* Workflow for legal and compliance approval
-* Versioning and audit trail for template changes
-* Ability to activate or deactivate templates without code changes
-
-h3. 7.3 Localization
-
-* Multi-language support
-* Region-specific date, time, and currency formatting
-
----
-
-h2. 8. Reliability & Delivery Guarantees
-
-The notification platform must support:
-
-* *At-least-once delivery* for critical notifications
-* Automatic retry mechanisms on transient failures
-* Fallback channels (e.g., SMS if push fails)
-* Deduplication to avoid duplicate notifications
-* Configurable retry limits and backoff strategies
-
----
-
-h2. 9. Status Tracking & Auditability
-
-h3. Notification Lifecycle Status
-
-* Created
-* Sent
-* Delivered
-* Failed
-* Read / Acknowledged (where applicable)
-
-h3. Audit Requirements
-
-* Timestamped audit trail
-* Correlation to:
-  ** Business event
-  ** Transaction ID
-  ** Case or workflow ID
-* Visibility for business, operations, and compliance teams
-
----
-
-h2. 10. Error Handling & Exception Management
-
-* Channel-specific failure reasons must be captured
-* Automatic retries with configurable thresholds
-* Manual re-send capability for authorized users
-* Alerts to internal operations teams for systemic failures
-* Dashboards showing error trends and SLA breaches
-
----
-
-h2. 11. Non-Functional Requirements (Business View)
-
-|| Category || Expectation ||
-| Availability | High availability with no single point of failure |
-| Performance | Low latency for real-time notifications |
-| Scalability | Supports peak merchant and transaction volumes |
-| Observability | End-to-end monitoring, logging, and tracing |
-| Supportability | Easy troubleshooting and reprocessing |
-
----
-
-h2. 12. Success Criteria
-
-* Reduction in missed merchant actions
-* Improved SLA adherence for chargebacks and underwriting
-* High delivery success rate across all channels
-* Complete audit trail for regulatory reviews
-* Faster onboarding of new notification use cases
-
----
-
+Maintain auditability for each underlying event
