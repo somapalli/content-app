@@ -14,3 +14,38 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Highlights
+
+He has been effectively managing both API and Mobile projects, demonstrating strong ownership and accountability. One of his key accomplishments this year was leading the Persistent Mobile Platform migration, necessitated by the IBM MobileFirst platform reaching end of support by mid-year. He worked closely with the vendor across planning, implementation, and deployment, ensuring the migration was completed on time and in compliance.
+
+We collaborated extensively on release planning, including the development of detailed backup and rollback strategies to minimize customer impact during production rollout. I expect him to continue applying these learnings to future releases by maintaining strong contingency and recovery plans.
+
+He also supported the Angular and Java migration workset. While a few issues were identified on older devices, it is understood that not all legacy devices can be tested. Going forward, it will be important to clearly manage business expectations by defining supported versus unsupported devices and ensuring Customer Care teams are informed to appropriately support customers. I appreciate his efforts in this area, and these learnings will help strengthen future delivery.
+
+Another key workset was the decommissioning of RSA security questions, which required significant coordination across multiple teams and careful navigation of downstream dependencies and challenges. He worked closely with downstream teams to resolve issues, and this experience has strengthened his ability to manage cross-team dependencies. This learning curve will continue to benefit him in future collaborations.
+
+He also made good progress in managing and reducing security vulnerabilities. While meaningful reductions were achieved, further effort is required to address older vulnerabilities. Planning is needed next year to reduce these remaining items to zero.
+
+Development Areas
+
+He spent relatively less time on the API project this year. I have coached him on improving delegation and workload distribution, enabling him to take on additional responsibilities while effectively leveraging the team. With improved prioritization and delegation, I am confident he will be able to successfully manage both API and Mobile projects in parallel.
+
+He is encouraged to continue leveraging AI tools to improve efficiency and quality, and to actively educate and enable the broader team to adopt these practices as well.
+
+Customer Focus Goal
+
+He consistently demonstrated a strong focus on minimizing customer impact, particularly during production releases. His emphasis on backup plans, controlled deployments, and compliance directly contributed to a stable and reliable customer experience.
+
+Goal Achievement
+
+He met key delivery goals, most notably completing the mobile platform migration within required timelines. He effectively balanced planning, execution, and coordination across vendors and internal teams, ensuring commitments were met.
+
+Risk Focus
+
+He demonstrated good risk awareness by proactively planning rollback strategies and addressing dependency risks during security and migration initiatives. As he gains more exposure to API-related worksets, I expect him to further enhance proactive risk identification and mitigation across multiple streams.
+
+Overall Summary
+
+Overall, he met expectations and delivered strong results across complex and high-impact initiatives. There is significant work ahead, particularly around mobile modernization, and with the experience gained this year—both technically and from a business perspective—I expect him to continue contributing high-quality solutions and play a key role in modernization efforts across both Mobile and API platforms.
+
+I appreciate his dedication and effort throughout the year. I enjoy working with him and look forward to continued collaboration and growth in the coming year.
