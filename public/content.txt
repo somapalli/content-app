@@ -14,34 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Below is manager-style feedback you can use directly for performance reviews, promotion packets, or calibration discussions. It is written in a balanced, credible tone—highlighting strengths, impact, and growth areas—without sounding inflated.
-
-⸻
-
-Manager Feedback
-
-Over the past year, [Name] has consistently demonstrated strong technical and strategic leadership across the Merchant Solutions domain. They operate effectively at an enterprise level, influencing architecture decisions across Origination, Onboarding, Underwriting, and Servicing while maintaining close alignment with business, legal, and risk partners.
-
-Strengths & Impact
-
-[Name] provides clear architectural direction in a highly complex, distributed environment. Their leadership across two active data centers, 60+ microservices, and a diverse technology stack has materially improved platform stability, delivery predictability, and operational resilience. They have been instrumental in advancing zero-downtime deployment strategies, event-driven design, and progressive delivery practices, all of which have reduced production risk and improved time-to-market.
-
-They are a trusted leader during planning and execution. Their contributions during PI Planning consistently improve scope clarity, MVP definition, and dependency management across squads. When delivery challenges arise—particularly those involving cross-team dependencies or infrastructure constraints—[Name] is relied upon to diagnose issues, align stakeholders, and drive practical solutions forward.
-
-From an operational standpoint, [Name] has played a critical role in improving reliability and incident response. Their guidance during complex production issues has shortened resolution times and strengthened team confidence in troubleshooting distributed systems. They also proactively improve observability and failure analysis practices, helping teams move from reactive fixes to preventive engineering.
-
-Leadership & Collaboration
-
-[Name] is an effective mentor and culture carrier. They elevate the technical maturity of engineers and leads through coaching, design reviews, and clear architectural principles. Their emphasis on simplicity, clarity, and ownership has reduced ambiguity and improved throughput across teams.
-
-They also demonstrate strong business acumen and financial stewardship. Their involvement in vendor negotiations, SOW reviews, and cost-optimization initiatives has resulted in meaningful cost avoidance while maintaining delivery quality. This balance of technical rigor and financial responsibility is a notable strength.
-
-Growth & Readiness
-
-[Name] has expanded their scope well beyond individual team ownership into cross-crew coordination, architectural governance, vendor strategy, and global delivery planning. They are increasingly operating at the next-level expectations, particularly in influencing without authority and shaping long-term platform strategy.
-
-As they continue to grow, further formalizing their role in enterprise-wide architecture governance and global team enablement (e.g., GCC leadership) will amplify their already strong impact.
-
-Overall Assessment
-
-[Name] is a high-performing, highly trusted leader whose contributions have had a direct and measurable impact on system reliability, delivery execution, and cost efficiency. Their expanded scope, consistent execution, and strategic influence strongly support consideration for advancement. They are well-positioned to take on broader architectural and organizational leadership responsibilities.
