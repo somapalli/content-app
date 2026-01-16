@@ -14,39 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-High-Level Workset Overview
-1. File and Data Ingestion
-
-Ingest authorization and payment-related events from external systems into the ABC data store using an intermediate (raw) data layer with minimal transformation to preserve source fidelity.
-
-Authorization events: Sale, pre-authorization, capture, incremental authorization, void, and refund events ingested from the payment gateway into intermediate tables.
-
-File-based events: Clearing, settlement, and chargeback files ingested from payment processors into intermediate tables.
-
-2. Transaction Processing
-
-Transform and persist data from intermediate tables into the transaction schema.
-
-Insert transaction records into transaction-related tables.
-
-Enrich transactions with required metadata.
-
-Establish transaction correlation across authorization, clearing, settlement, and adjustment events.
-
-3. Pricing Calculation
-
-Calculate pricing, fees, and adjustments using enriched transaction data and configured pricing rules.
-
-Apply pricing logic based on pricing configurations.
-
-Ensure fees and adjustments are calculated after clearing and settlement events.
-
-Support accurate reconciliation and downstream financial processing.
-
-4. Payout Processing
-
-Generate merchant payouts based on configured payment methods.
-
-Create a payout module to support ACH payments via NACHA file generation.
-
-Integrate with the payment engine to execute payouts.
