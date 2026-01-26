@@ -14,3 +14,90 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Got it — here’s a **clean, final ADR-ready version** with **only the two options you want**, clearly named and positioned, and with the key trade-offs called out 👌
+
+---
+
+## 🧾 **ADR: Merchant Pricing Calculation Strategy**
+
+### **Context**
+
+The platform must calculate **merchant pricing, fees, and adjustments** across authorization, clearing, and settlement for **all payment types**, supporting both **Blended** and **Cost-Plus** pricing models. The solution must reliably determine **gross and net amounts** while meeting **low-latency and high-availability** requirements for critical payment processing.
+
+---
+
+## **Option 1: In-House Pricing Calculation Engine with Cached Pricing from Zafin**
+
+### **Description**
+
+Build an internal pricing calculation engine that performs all fee, adjustment, and net/gross calculations in-house. **Zafin** acts as the **system of record** for contracts and pricing, with pricing data synchronized asynchronously and cached locally for runtime use.
+
+### **Key Characteristics**
+
+* Zafin stores contracts, pricing models, and fee configurations
+* Pricing data is synchronized via scheduled or event-driven processes
+* Local cache (e.g., in-memory / Redis) used for runtime pricing
+* No real-time Zafin calls in the transaction processing path
+
+### **Pros**
+
+* ✅ No external dependency in the critical processing path
+* ✅ Low latency and predictable performance
+* ✅ High resiliency (pricing available even if Zafin is unavailable)
+* ✅ Supports active/active and event-driven architectures
+* ✅ Business-friendly pricing management via Zafin
+
+### **Cons**
+
+* ⚠️ Additional complexity to build and maintain sync, cache, and validation logic
+* ⚠️ Requires governance for pricing versions and effective dates
+* ⚠️ Eventual consistency between Zafin and cached pricing
+
+---
+
+## **Option 2: External Pricing via Zafin**
+
+### **Description**
+
+All pricing and fee calculations are performed by Zafin at runtime. The platform invokes Zafin services in real time during authorization and settlement to retrieve calculated pricing results.
+
+### **Key Characteristics**
+
+* Zafin is responsible for pricing logic and calculations
+* Real-time service invocation for each pricing request
+* Minimal internal pricing logic
+
+### **Pros**
+
+* ✅ Simplifies internal implementation
+* ✅ Centralized pricing logic and governance
+* ✅ Faster initial time to market
+* ✅ Business users can manage pricing with minimal engineering involvement
+
+### **Cons**
+
+* ❌ Introduces external dependency in the critical transaction path
+* ❌ Adds network latency to high-volume payment flows
+* ❌ Availability and performance tied to Zafin SLAs
+* ❌ Requires strong resiliency patterns (timeouts, retries, fallbacks)
+
+---
+
+## **Summary Comparison**
+
+| Dimension             | Option 1: In-House + Cached Zafin | Option 2: External Zafin |
+| --------------------- | --------------------------------- | ------------------------ |
+| Runtime Dependency    | ✅ None                            | ❌ External               |
+| Latency               | ✅ Lowest                          | ⚠️ Higher                |
+| Resiliency            | ✅ High                            | ⚠️ Vendor-dependent      |
+| Control & Flexibility | ✅ High                            | ⚠️ Limited               |
+| Time to Market        | ⚠️ Medium                         | ✅ Faster                 |
+| Operational Risk      | ✅ Lower                           | ⚠️ Higher                |
+
+---
+
+### **Key Consideration**
+
+Option 1 prioritizes **performance, resiliency, and platform control**, while Option 2 prioritizes **simplicity and faster delivery** at the cost of **additional runtime dependency and latency**.
+
+
