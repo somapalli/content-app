@@ -14,19 +14,3 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-RTE Objectives & Goals
-
-Establish a Clear Delivery Roadmap for MVP 1.2
-Define and maintain a high-level delivery plan and key milestones for MVP 1.2, ensuring alignment on scope, dependencies, and target outcomes across all stakeholders.
-
-Translate Roadmap into PI-Level Execution Plans
-Break down the MVP 1.2 roadmap into well-defined epics and stories across the next three Program Increments (PIs), with clear ownership, sequencing, and dependency management to enable predictable planning.
-
-Drive PI and Sprint Execution Excellence
-Ensure consistent delivery execution within each PI by facilitating effective PI Planning, iteration planning, and ART ceremonies, and by tracking sprint-level commitments to keep teams aligned with PI objectives and overall goals.
-
-Ensure Predictable and On-Time Delivery
-Monitor progress against milestones and sprint commitments, proactively manage risks and impediments, and course-correct as needed to ensure timelines are met and delivery remains on track.
-
-Enable Transparency and Continuous Improvement
-Provide clear visibility into delivery status, risks, and dependencies through metrics and regular communication, and foster continuous improvement through Inspect & Adapt outcomes and actionable follow-ups.
