@@ -7,8 +7,14 @@ Features:
 - Responsive design
 - Easy to update
 
-You can add more content by:
-1. Editing this text file
-2. Using the "Add Content" button
-3. Updating the content through the API
+Proposed Flow (Current State)
+Gateway publishes settlement events to Kafka (settlement.raw).
 
+Consumer A consumes settlement.raw, persists data to a temporary table, and emits settlement.raw.processed.
+
+Consumer B consumes settlement.raw.processed and persists the data into the transaction table.
+
+This follows a classic event-driven choreography pattern, where each consumer independently reacts to an event and publishes the next event in the chain.
+
+Design Consideration (Future State)
+As we plan the solution, we intend to continue with the event-based choreography model. At the same time, we want to design the components and contracts in a way that allows a smooth transition to an OpenCoreOS Fabric–based workflow in the future. The goal is to enable migration to a managed orchestration model with minimal refactoring, avoiding rework by keeping clear event boundaries, well-defined step responsibilities, and decoupled persistence and processing logic.
