@@ -7,10 +7,3 @@ Features:
 - Responsive design
 - Easy to update
 
-Thank you for the support provided by the Run the Bank, API, and Payments teams during the FedNow release last week. The team spent a significant amount of time supporting the release, and while the collaboration was appreciated, it also highlighted several opportunities to improve our processes and reduce the need for extended, around-the-clock support and last-minute changes in future releases.
-
-To address this, we propose a few process improvements. First, we should establish a structured design review involving all three teams—RTB, API, and Payments (both CTB and channel)—to ensure early alignment. Since we already maintain architecture records and have an approval process in place, we can leverage RTB as part of the approval before development begins. Additionally, as part of our Agile sprint process, we will engage RTB in sprint demos to gather early feedback and incorporate changes sooner. We understand RTB may not always be able to attend demos due to production responsibilities, so we will share demo recordings and materials via email to allow for asynchronous review and feedback.
-
-Ahead of each release, we also propose a final review approximately two weeks before deployment to walk through the release plan, observability, and operational readiness, ensuring all stages of the development lifecycle are covered. From a release planning and deployment perspective, we will work closely with both the API and Payments teams to improve coordination, keep releases on schedule, and minimize customer impact during maintenance windows, including managing traffic appropriately.
-
-Finally, we would like to take a more holistic look at operational gaps and monitoring needs. Understanding where tooling, processes, or prioritization can be improved will help us align with RTB on quarterly planning and ensure the right items are scoped into upcoming releases. Please feel free to share your feedback or suggestions so we can refine this approach and jointly improve future releases.
