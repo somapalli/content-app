@@ -7,3 +7,600 @@ Features:
 - Responsive design
 - Easy to update
 
+Perfect — below is a **fully expanded, formal ADR** with all the rationale folded in, written in a **neutral, architecture-board–ready tone**. You can paste this directly into Confluence or an ADR repo with no additional edits.
+
+---
+
+# Architecture Decision Record (ADR)
+
+## ADR-012: Selection of Operational Data Store (ODS) Platform for Near–Real-Time Merchant Dashboards
+
+### Status
+
+**Proposed**
+
+### Date
+
+2026-02-10
+
+### Decision Owners
+
+Merchant Platform Architecture Team
+
+### Related Artifacts
+
+* Merchant Funding Dashboards – Functional Requirements
+* ODS Non-Functional Requirements (Latency, Concurrency, Scalability)
+
+---
+
+## Context
+
+The merchant solution requires **near–real-time dashboards and internal operational views** to provide visibility into **planned funding**, with the ability to drill down from **portfolio → merchant → date → individual transaction**. These dashboards are used by internal operations, finance, and support teams for monitoring, reconciliation, and decision-making.
+
+Currently, all merchant, transaction, settlement, and funding data is persisted in **Oracle**, which serves as the **system of record (SoR)** for transactional processing and financial integrity.
+
+As merchant volume, transaction throughput, and internal usage increase, Oracle is increasingly required to support:
+
+* High-concurrency access
+* Aggregation-heavy queries
+* Low-latency refresh cycles (seconds to minutes)
+* Deep drill-down reporting
+
+These workloads are fundamentally **analytical and operational reporting** in nature and differ from Oracle’s primary OLTP responsibilities.
+
+As part of the **Operational Data Store (ODS)** requirements, multiple approaches were evaluated:
+
+1. Oracle-only ODS using columnar and analytical features
+2. Oracle + Elasticsearch
+3. Oracle + ClickHouse
+
+---
+
+## Decision
+
+Adopt a **dual-platform architecture** where:
+
+* **Oracle** remains the **authoritative system of record** for all merchant, transaction, settlement, funding, and ledger data.
+* **ClickHouse** is introduced as the **Operational Data Store (ODS)** to support:
+
+  * Near–real-time dashboards
+  * Planned funding visibility
+  * Portfolio-, merchant-, date-, and transaction-level drill-downs
+  * High-concurrency, aggregation-intensive internal reporting
+
+Data will be propagated from Oracle to ClickHouse using **CDC and/or streaming mechanisms**, providing near–real-time freshness while maintaining transactional integrity in Oracle.
+
+**Elasticsearch** may be introduced later for **search-centric operational use cases** (e.g., free-text search, alerts), but it is not selected as the primary ODS.
+
+---
+
+## Rationale
+
+### 1. Oracle Columnar ODS Is Not Optimized for This Workload
+
+Oracle provides analytical capabilities such as:
+
+* In-Memory Column Store
+* Partitioning
+* Materialized Views
+* Resource Manager
+
+However, these features:
+
+* Store **additional columnar copies in memory**
+* Remain tightly coupled to the OLTP engine
+* Compete for CPU and memory with transactional workloads
+
+This approach is effective for **selective query acceleration**, but not for:
+
+* Continuous near–real-time dashboards
+* High-concurrency internal access
+* Large-scale financial aggregations
+
+As data volume grows, memory pressure and workload contention increase, leading to unpredictable performance and higher cost.
+
+---
+
+### 2. OLTP and ODS Workload Isolation Is a Core Requirement
+
+Planned funding dashboards are **read-heavy and aggregation-intensive**. Executing these workloads on the same platform as:
+
+* Settlement posting
+* Funding execution
+* Ledger updates
+
+introduces operational risk.
+
+Even with Oracle workload controls, analytical spikes (e.g., funding windows, month-end activity) can negatively impact transactional SLAs.
+
+ClickHouse provides **physical and logical isolation**, ensuring:
+
+* Analytics failures cannot impact funding or settlement
+* Predictable performance under load
+* Clear separation of concerns
+
+---
+
+### 3. Elasticsearch Is Search-Optimized, Not Financial-Aggregation-Optimized
+
+Elasticsearch excels at:
+
+* Text search
+* Filtering
+* Operational investigations
+* Alerting
+
+However, planned funding dashboards primarily require:
+
+* Large-scale numeric aggregations
+* Group-bys across high-cardinality dimensions
+* Deep drill-down across millions of rows
+
+Elasticsearch aggregation performance degrades as:
+
+* Cardinality increases
+* Time ranges widen
+* Dashboard concurrency grows
+
+ClickHouse is purpose-built for **numeric, columnar analytics** and delivers:
+
+* Faster aggregations
+* Better drill-down performance
+* More predictable scaling behavior
+
+---
+
+### 4. Materialized View–Driven ODS Does Not Scale for Drill-Down Use Cases
+
+Oracle-based ODS patterns often rely on pre-aggregated materialized views. For this solution, that would require:
+
+* Multiple rollups by portfolio, merchant, date, funding batch
+* Frequent refresh cycles
+* Complex dependency management
+
+This results in:
+
+* MV sprawl
+* Increased operational complexity
+* Reduced flexibility for ad-hoc drill-downs
+
+ClickHouse computes aggregations **on demand** with low latency, avoiding the need to pre-compute every dimensional combination.
+
+---
+
+### 5. Cost and Scalability Favor a Dedicated Analytics Platform
+
+Oracle analytical scaling typically requires:
+
+* High-memory instances
+* Additional licensing (In-Memory, Partitioning)
+* Vertical scaling to protect OLTP performance
+
+ClickHouse offers:
+
+* High compression ratios
+* Disk-efficient columnar storage
+* Horizontal scaling
+* Predictable cost growth aligned to analytics demand
+
+---
+
+## Alternatives Considered
+
+### Option 1: Oracle-Only ODS (Columnar / In-Memory)
+
+**Pros**
+
+* Fewer platforms
+* Strong transactional consistency
+* Existing operational familiarity
+
+**Cons**
+
+* OLTP and analytics contention risk
+* High cost at scale
+* Complex tuning and workload management
+* Limited concurrency for dashboards
+
+---
+
+### Option 2: Oracle + Elasticsearch
+
+**Pros**
+
+* Strong filtering and search
+* Near–real-time ingestion
+* Good operational tooling
+
+**Cons**
+
+* Suboptimal for large-scale financial aggregations
+* Higher memory pressure for dashboards
+* Weaker fit for deterministic financial reporting
+
+---
+
+### Option 3: Oracle + ClickHouse (Selected)
+
+**Pros**
+
+* Native columnar analytics
+* Excellent aggregation and drill-down performance
+* High concurrency support
+* Strong cost efficiency
+* Clear OLTP/ODS separation
+
+**Cons**
+
+* Additional platform to operate
+* Requires CDC / streaming pipeline
+
+---
+
+## Consequences
+
+### Positive
+
+* Predictable near–real-time dashboard performance
+* Reduced operational risk to Oracle OLTP workloads
+* Scalable foundation for merchant growth
+* Clear architectural separation of concerns
+
+### Trade-offs
+
+* Eventual consistency between Oracle and ODS
+* Additional infrastructure and operational ownership
+* Need for monitoring and reconciliation
+
+---
+
+## High-Level Architecture
+
+```
+Oracle (System of Record)
+   │
+   │ CDC / Streaming
+   ▼
+ClickHouse (ODS)
+   │
+   ├─ Planned funding dashboards
+   ├─ Portfolio → Merchant → Transaction drill-downs
+   ├─ Near–real-time operational views
+   └─ Internal reporting
+```
+
+(Optional)
+
+```
+ClickHouse → Elasticsearch
+              (Search / alerts)
+```
+
+---
+
+## Compliance and Risk Considerations
+
+* Oracle remains the authoritative source of record
+* ODS is read-only for analytical and operational reporting
+* Data freshness and consistency are monitored
+* Access controls and data governance policies apply consistently
+
+---
+
+## Next Steps
+
+1. Finalize CDC / streaming architecture and latency SLAs
+2. Define ClickHouse schema aligned to dashboard queries
+3. Perform volume-based performance validation
+4. Submit ADR for Architecture Review Board approval
+
+---
+
+If you want, next I can:
+
+* Convert this to your **enterprise ADR template**
+* Add **performance sizing math (2M+ tx/day)**
+* Add a **cost comparison appendix**
+* Create a **1-slide executive summary** from this ADR
+
+Just tell me which one you want to do next.
+----
+Perfect — below is a **fully expanded, formal ADR** with all the rationale folded in, written in a **neutral, architecture-board–ready tone**. You can paste this directly into Confluence or an ADR repo with no additional edits.
+
+---
+
+# Architecture Decision Record (ADR)
+
+## ADR-012: Selection of Operational Data Store (ODS) Platform for Near–Real-Time Merchant Dashboards
+
+### Status
+
+**Proposed**
+
+### Date
+
+2026-02-10
+
+### Decision Owners
+
+Merchant Platform Architecture Team
+
+### Related Artifacts
+
+* Merchant Funding Dashboards – Functional Requirements
+* ODS Non-Functional Requirements (Latency, Concurrency, Scalability)
+
+---
+
+## Context
+
+The merchant solution requires **near–real-time dashboards and internal operational views** to provide visibility into **planned funding**, with the ability to drill down from **portfolio → merchant → date → individual transaction**. These dashboards are used by internal operations, finance, and support teams for monitoring, reconciliation, and decision-making.
+
+Currently, all merchant, transaction, settlement, and funding data is persisted in **Oracle**, which serves as the **system of record (SoR)** for transactional processing and financial integrity.
+
+As merchant volume, transaction throughput, and internal usage increase, Oracle is increasingly required to support:
+
+* High-concurrency access
+* Aggregation-heavy queries
+* Low-latency refresh cycles (seconds to minutes)
+* Deep drill-down reporting
+
+These workloads are fundamentally **analytical and operational reporting** in nature and differ from Oracle’s primary OLTP responsibilities.
+
+As part of the **Operational Data Store (ODS)** requirements, multiple approaches were evaluated:
+
+1. Oracle-only ODS using columnar and analytical features
+2. Oracle + Elasticsearch
+3. Oracle + ClickHouse
+
+---
+
+## Decision
+
+Adopt a **dual-platform architecture** where:
+
+* **Oracle** remains the **authoritative system of record** for all merchant, transaction, settlement, funding, and ledger data.
+* **ClickHouse** is introduced as the **Operational Data Store (ODS)** to support:
+
+  * Near–real-time dashboards
+  * Planned funding visibility
+  * Portfolio-, merchant-, date-, and transaction-level drill-downs
+  * High-concurrency, aggregation-intensive internal reporting
+
+Data will be propagated from Oracle to ClickHouse using **CDC and/or streaming mechanisms**, providing near–real-time freshness while maintaining transactional integrity in Oracle.
+
+**Elasticsearch** may be introduced later for **search-centric operational use cases** (e.g., free-text search, alerts), but it is not selected as the primary ODS.
+
+---
+
+## Rationale
+
+### 1. Oracle Columnar ODS Is Not Optimized for This Workload
+
+Oracle provides analytical capabilities such as:
+
+* In-Memory Column Store
+* Partitioning
+* Materialized Views
+* Resource Manager
+
+However, these features:
+
+* Store **additional columnar copies in memory**
+* Remain tightly coupled to the OLTP engine
+* Compete for CPU and memory with transactional workloads
+
+This approach is effective for **selective query acceleration**, but not for:
+
+* Continuous near–real-time dashboards
+* High-concurrency internal access
+* Large-scale financial aggregations
+
+As data volume grows, memory pressure and workload contention increase, leading to unpredictable performance and higher cost.
+
+---
+
+### 2. OLTP and ODS Workload Isolation Is a Core Requirement
+
+Planned funding dashboards are **read-heavy and aggregation-intensive**. Executing these workloads on the same platform as:
+
+* Settlement posting
+* Funding execution
+* Ledger updates
+
+introduces operational risk.
+
+Even with Oracle workload controls, analytical spikes (e.g., funding windows, month-end activity) can negatively impact transactional SLAs.
+
+ClickHouse provides **physical and logical isolation**, ensuring:
+
+* Analytics failures cannot impact funding or settlement
+* Predictable performance under load
+* Clear separation of concerns
+
+---
+
+### 3. Elasticsearch Is Search-Optimized, Not Financial-Aggregation-Optimized
+
+Elasticsearch excels at:
+
+* Text search
+* Filtering
+* Operational investigations
+* Alerting
+
+However, planned funding dashboards primarily require:
+
+* Large-scale numeric aggregations
+* Group-bys across high-cardinality dimensions
+* Deep drill-down across millions of rows
+
+Elasticsearch aggregation performance degrades as:
+
+* Cardinality increases
+* Time ranges widen
+* Dashboard concurrency grows
+
+ClickHouse is purpose-built for **numeric, columnar analytics** and delivers:
+
+* Faster aggregations
+* Better drill-down performance
+* More predictable scaling behavior
+
+---
+
+### 4. Materialized View–Driven ODS Does Not Scale for Drill-Down Use Cases
+
+Oracle-based ODS patterns often rely on pre-aggregated materialized views. For this solution, that would require:
+
+* Multiple rollups by portfolio, merchant, date, funding batch
+* Frequent refresh cycles
+* Complex dependency management
+
+This results in:
+
+* MV sprawl
+* Increased operational complexity
+* Reduced flexibility for ad-hoc drill-downs
+
+ClickHouse computes aggregations **on demand** with low latency, avoiding the need to pre-compute every dimensional combination.
+
+---
+
+### 5. Cost and Scalability Favor a Dedicated Analytics Platform
+
+Oracle analytical scaling typically requires:
+
+* High-memory instances
+* Additional licensing (In-Memory, Partitioning)
+* Vertical scaling to protect OLTP performance
+
+ClickHouse offers:
+
+* High compression ratios
+* Disk-efficient columnar storage
+* Horizontal scaling
+* Predictable cost growth aligned to analytics demand
+
+---
+
+## Alternatives Considered
+
+### Option 1: Oracle-Only ODS (Columnar / In-Memory)
+
+**Pros**
+
+* Fewer platforms
+* Strong transactional consistency
+* Existing operational familiarity
+
+**Cons**
+
+* OLTP and analytics contention risk
+* High cost at scale
+* Complex tuning and workload management
+* Limited concurrency for dashboards
+
+---
+
+### Option 2: Oracle + Elasticsearch
+
+**Pros**
+
+* Strong filtering and search
+* Near–real-time ingestion
+* Good operational tooling
+
+**Cons**
+
+* Suboptimal for large-scale financial aggregations
+* Higher memory pressure for dashboards
+* Weaker fit for deterministic financial reporting
+
+---
+
+### Option 3: Oracle + ClickHouse (Selected)
+
+**Pros**
+
+* Native columnar analytics
+* Excellent aggregation and drill-down performance
+* High concurrency support
+* Strong cost efficiency
+* Clear OLTP/ODS separation
+
+**Cons**
+
+* Additional platform to operate
+* Requires CDC / streaming pipeline
+
+---
+
+## Consequences
+
+### Positive
+
+* Predictable near–real-time dashboard performance
+* Reduced operational risk to Oracle OLTP workloads
+* Scalable foundation for merchant growth
+* Clear architectural separation of concerns
+
+### Trade-offs
+
+* Eventual consistency between Oracle and ODS
+* Additional infrastructure and operational ownership
+* Need for monitoring and reconciliation
+
+---
+
+## High-Level Architecture
+
+```
+Oracle (System of Record)
+   │
+   │ CDC / Streaming
+   ▼
+ClickHouse (ODS)
+   │
+   ├─ Planned funding dashboards
+   ├─ Portfolio → Merchant → Transaction drill-downs
+   ├─ Near–real-time operational views
+   └─ Internal reporting
+```
+
+(Optional)
+
+```
+ClickHouse → Elasticsearch
+              (Search / alerts)
+```
+
+---
+
+## Compliance and Risk Considerations
+
+* Oracle remains the authoritative source of record
+* ODS is read-only for analytical and operational reporting
+* Data freshness and consistency are monitored
+* Access controls and data governance policies apply consistently
+
+---
+
+## Next Steps
+
+1. Finalize CDC / streaming architecture and latency SLAs
+2. Define ClickHouse schema aligned to dashboard queries
+3. Perform volume-based performance validation
+4. Submit ADR for Architecture Review Board approval
+
+---
+
+If you want, next I can:
+
+* Convert this to your **enterprise ADR template**
+* Add **performance sizing math (2M+ tx/day)**
+* Add a **cost comparison appendix**
+* Create a **1-slide executive summary** from this ADR
+
+Just tell me which one you want to do next.
