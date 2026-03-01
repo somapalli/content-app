@@ -14,3 +14,952 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+-- =============================================================================
+-- TRANSACTION MONITORING MODEL - ORACLE DDL + SAMPLE DATA
+-- ABC Bank | Payment Processing System
+-- =============================================================================
+-- SCHEMA OVERVIEW
+--   1.  LOOKUP TABLES          (static reference data)
+--   2.  CORE TABLES            (transaction, event, allocation)
+--   3.  MONITORING TABLES      (materialized view table, exceptions)
+--   4.  CONSTRAINTS & INDEXES
+--   5.  SAMPLE DATA
+--       Scenario A: Normal Auth → Incremental → Capture → Settle
+--       Scenario B: Auth → Partial Void → Capture → Settle
+--       Scenario C: Auth → Capture → Settle → Refund
+--       Scenario D: Auth → Capture → Settle → Chargeback → Chargeback Won
+--       Scenario E: Monthly Fee Applied
+--       Scenario F: Positive Adjustment (manual credit)
+--       Scenario G: Duplicate Auth Attempt (exception raised)
+--       Scenario H: Capture Exceeds Authorization (exception raised)
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- SECTION 1: LOOKUP TABLES
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE lkp_transaction_type (
+    type_id         NUMBER(4)       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    type_code       VARCHAR2(30)    NOT NULL,
+    type_name       VARCHAR2(100)   NOT NULL,
+    description     VARCHAR2(500),
+    is_active       NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at      TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT uq_txn_type_code UNIQUE (type_code)
+);
+
+CREATE TABLE lkp_transaction_subtype (
+    subtype_id      NUMBER(4)       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    type_id         NUMBER(4)       NOT NULL,   -- parent type
+    subtype_code    VARCHAR2(30)    NOT NULL,
+    subtype_name    VARCHAR2(100)   NOT NULL,
+    description     VARCHAR2(500),
+    is_active       NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at      TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT uq_txn_subtype_code UNIQUE (subtype_code),
+    CONSTRAINT fk_subtype_type FOREIGN KEY (type_id)
+        REFERENCES lkp_transaction_type (type_id)
+);
+
+CREATE TABLE lkp_transaction_status (
+    status_id       NUMBER(4)       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    type_id         NUMBER(4)       NOT NULL,   -- status scoped to a type
+    status_code     VARCHAR2(30)    NOT NULL,
+    status_name     VARCHAR2(100)   NOT NULL,
+    is_terminal     NUMBER(1)       DEFAULT 0 NOT NULL CHECK (is_terminal IN (0,1)),  -- no further transitions allowed
+    is_active       NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at      TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT uq_txn_status_code UNIQUE (status_code),
+    CONSTRAINT fk_status_type FOREIGN KEY (type_id)
+        REFERENCES lkp_transaction_type (type_id)
+);
+
+CREATE TABLE lkp_event_type (
+    event_type_id   NUMBER(4)       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    event_type_code VARCHAR2(30)    NOT NULL,
+    event_type_name VARCHAR2(100)   NOT NULL,
+    affects_balance NUMBER(1)       DEFAULT 1 NOT NULL CHECK (affects_balance IN (0,1)),
+    description     VARCHAR2(500),
+    is_active       NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at      TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT uq_evt_type_code UNIQUE (event_type_code)
+);
+
+-- Enforces only valid type/subtype combos can be used on a transaction
+CREATE TABLE lkp_valid_type_subtype (
+    type_id         NUMBER(4)       NOT NULL,
+    subtype_id      NUMBER(4)       NOT NULL,
+    is_active       NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    CONSTRAINT pk_valid_type_subtype PRIMARY KEY (type_id, subtype_id),
+    CONSTRAINT fk_vts_type    FOREIGN KEY (type_id)    REFERENCES lkp_transaction_type    (type_id),
+    CONSTRAINT fk_vts_subtype FOREIGN KEY (subtype_id) REFERENCES lkp_transaction_subtype (subtype_id)
+);
+
+-- Allowed status transitions per transaction type  
+-- e.g., Credit Card: AUTHORIZED → CAPTURED → SETTLED
+CREATE TABLE lkp_status_transition (
+    transition_id       NUMBER(6)       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    type_id             NUMBER(4)       NOT NULL,
+    from_status_id      NUMBER(4),      -- NULL = initial state (no prior status)
+    to_status_id        NUMBER(4)       NOT NULL,
+    is_active           NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    CONSTRAINT uq_status_transition UNIQUE (type_id, from_status_id, to_status_id),
+    CONSTRAINT fk_st_type   FOREIGN KEY (type_id)        REFERENCES lkp_transaction_type   (type_id),
+    CONSTRAINT fk_st_from   FOREIGN KEY (from_status_id) REFERENCES lkp_transaction_status (status_id),
+    CONSTRAINT fk_st_to     FOREIGN KEY (to_status_id)   REFERENCES lkp_transaction_status (status_id)
+);
+
+
+-- -----------------------------------------------------------------------------
+-- SECTION 2: CORE TABLES
+-- -----------------------------------------------------------------------------
+
+CREATE TABLE merchant (
+    merchant_id         VARCHAR2(20)    PRIMARY KEY,
+    merchant_name       VARCHAR2(200)   NOT NULL,
+    merchant_category   VARCHAR2(10),   -- MCC code
+    acquiring_bank_id   VARCHAR2(20),
+    is_active           NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at          TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL
+);
+
+CREATE TABLE merchant_account (
+    account_id          VARCHAR2(20)    PRIMARY KEY,
+    merchant_id         VARCHAR2(20)    NOT NULL,
+    account_type        VARCHAR2(20)    NOT NULL,  -- CHECKING, SETTLEMENT, FEE_COLLECTION
+    currency_code       CHAR(3)         DEFAULT 'USD' NOT NULL,
+    is_active           NUMBER(1)       DEFAULT 1 NOT NULL CHECK (is_active IN (0,1)),
+    created_at          TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    CONSTRAINT fk_macct_merchant FOREIGN KEY (merchant_id) REFERENCES merchant (merchant_id)
+);
+
+-- ── TRANSACTION ──────────────────────────────────────────────────────────────
+CREATE TABLE txn (
+    transaction_id          VARCHAR2(36)    PRIMARY KEY,    -- UUID
+    merchant_id             VARCHAR2(20)    NOT NULL,
+    account_id              VARCHAR2(20)    NOT NULL,
+    terminal_id             VARCHAR2(50),
+    type_id                 NUMBER(4)       NOT NULL,
+    subtype_id              NUMBER(4)       NOT NULL,
+    status_id               NUMBER(4)       NOT NULL,
+
+    -- Three-amount model: critical for reconciliation
+    requested_amount        NUMBER(18,2)    NOT NULL,
+    approved_amount         NUMBER(18,2),
+    settled_amount          NUMBER(18,2),
+    currency_code           CHAR(3)         DEFAULT 'USD' NOT NULL,
+
+    -- Timestamps
+    initiated_at            TIMESTAMP       NOT NULL,
+    processed_at            TIMESTAMP,
+    settled_at              TIMESTAMP,
+
+    -- Dedup / external refs
+    idempotency_key         VARCHAR2(100),
+    external_ref_id         VARCHAR2(100),           -- processor / network reference
+
+    -- Hierarchy: refund or chargeback links back to original
+    parent_transaction_id   VARCHAR2(36),
+
+    -- Card / channel context
+    entry_mode              VARCHAR2(30),             -- CARD_PRESENT, CNP, CONTACTLESS, TOKEN
+    channel                 VARCHAR2(30),             -- POS, ECOMMERCE, MOTO, API
+    auth_code               VARCHAR2(20),
+    network_response_code   VARCHAR2(10),             -- "00" approved, "05" declined, etc.
+    card_bin                VARCHAR2(8),              -- first 6-8 digits for BIN analysis
+    card_last4              VARCHAR2(4),
+    card_network            VARCHAR2(20),             -- VISA, MASTERCARD, AMEX, DISCOVER
+
+    -- Risk
+    risk_score              NUMBER(5,2),
+    risk_decision           VARCHAR2(20),             -- APPROVED, REVIEWED, DECLINED
+
+    -- Audit
+    created_by              VARCHAR2(100)   DEFAULT 'SYSTEM' NOT NULL,
+    source_system           VARCHAR2(50),
+    created_at              TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    updated_at              TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_txn_merchant  FOREIGN KEY (merchant_id)  REFERENCES merchant          (merchant_id),
+    CONSTRAINT fk_txn_account   FOREIGN KEY (account_id)   REFERENCES merchant_account  (account_id),
+    CONSTRAINT fk_txn_type      FOREIGN KEY (type_id)      REFERENCES lkp_transaction_type    (type_id),
+    CONSTRAINT fk_txn_subtype   FOREIGN KEY (subtype_id)   REFERENCES lkp_transaction_subtype (subtype_id),
+    CONSTRAINT fk_txn_status    FOREIGN KEY (status_id)    REFERENCES lkp_transaction_status  (status_id),
+    CONSTRAINT fk_txn_parent    FOREIGN KEY (parent_transaction_id) REFERENCES txn (transaction_id),
+    CONSTRAINT fk_txn_vts       FOREIGN KEY (type_id, subtype_id)
+                                REFERENCES lkp_valid_type_subtype (type_id, subtype_id)
+);
+
+-- ── EVENT ─────────────────────────────────────────────────────────────────────
+CREATE TABLE txn_event (
+    event_id                VARCHAR2(36)    PRIMARY KEY,    -- UUID
+    transaction_id          VARCHAR2(36)    NOT NULL,
+    event_type_id           NUMBER(4)       NOT NULL,
+    sequence_number         NUMBER(6)       NOT NULL,       -- ordered within transaction
+
+    amount                  NUMBER(18,2)    NOT NULL,       -- signed: negative for reversals
+    currency_code           CHAR(3)         DEFAULT 'USD' NOT NULL,
+
+    event_status            VARCHAR2(20)    DEFAULT 'COMPLETED' NOT NULL,
+                                                            -- PENDING, COMPLETED, FAILED, REVERSED
+
+    -- Who/what triggered this event
+    initiated_by            VARCHAR2(20)    NOT NULL,       -- SYSTEM, MERCHANT, NETWORK, OPERATOR
+
+    -- External timestamps vs internal receipt
+    network_timestamp       TIMESTAMP,
+    received_at             TIMESTAMP       NOT NULL,
+    processed_at            TIMESTAMP,
+
+    -- Processor reference
+    processor_event_id      VARCHAR2(100),
+
+    -- Reversal chain: self-referencing
+    is_reversal             NUMBER(1)       DEFAULT 0 NOT NULL CHECK (is_reversal IN (0,1)),
+    reversed_event_id       VARCHAR2(36),                   -- FK to the event being reversed
+
+    -- Extensible metadata (network-specific fields, raw response, etc.)
+    metadata                CLOB            CHECK (metadata IS NULL OR metadata = metadata),  -- valid CLOB
+
+    created_at              TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_evt_txn           FOREIGN KEY (transaction_id)   REFERENCES txn          (transaction_id),
+    CONSTRAINT fk_evt_type          FOREIGN KEY (event_type_id)    REFERENCES lkp_event_type (event_type_id),
+    CONSTRAINT fk_evt_reversal      FOREIGN KEY (reversed_event_id) REFERENCES txn_event    (event_id),
+    CONSTRAINT uq_evt_seq           UNIQUE (transaction_id, sequence_number)  -- no duplicate sequence within a txn
+);
+
+-- ── ALLOCATION (MONEY MOVEMENT) ───────────────────────────────────────────────
+-- Each allocation_group_id groups the lines of a single money movement.
+-- Double-entry invariant: SUM(amount) per group = 0.
+CREATE TABLE txn_allocation (
+    allocation_id           NUMBER(12)      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    allocation_group_id     VARCHAR2(36)    NOT NULL,       -- UUID — groups SOURCE + TARGET lines
+    event_id                VARCHAR2(36)    NOT NULL,
+    role                    VARCHAR2(10)    NOT NULL CHECK (role IN ('SOURCE','TARGET')),
+    flow_type               VARCHAR2(30)    NOT NULL,       -- AUTH, INCREMENTAL, CAPTURE, VOID, SETTLEMENT, REFUND, etc.
+    amount                  NUMBER(18,2)    NOT NULL,       -- signed: negative for SOURCE, positive for TARGET
+    ledger_entry_id         VARCHAR2(36),                   -- FK to double-entry ledger (future)
+    allocated_at            TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_alloc_event FOREIGN KEY (event_id) REFERENCES txn_event (event_id)
+);
+
+
+-- -----------------------------------------------------------------------------
+-- SECTION 3: MONITORING TABLES
+-- -----------------------------------------------------------------------------
+
+-- Pre-aggregated monitoring record per transaction (CQRS read side)
+-- Refreshed by a background job or trigger after each event is posted
+CREATE TABLE txn_monitor (
+    transaction_id              VARCHAR2(36)    PRIMARY KEY,
+    merchant_id                 VARCHAR2(20)    NOT NULL,
+    current_status_code         VARCHAR2(30)    NOT NULL,
+
+    -- Running totals
+    total_authorized            NUMBER(18,2)    DEFAULT 0,
+    total_captured              NUMBER(18,2)    DEFAULT 0,
+    total_settled               NUMBER(18,2)    DEFAULT 0,
+    total_refunded              NUMBER(18,2)    DEFAULT 0,
+    total_chargedback           NUMBER(18,2)    DEFAULT 0,
+    net_position                NUMBER(18,2)    DEFAULT 0,  -- authorized - voided - refunded - chargedback
+
+    -- Flags
+    has_open_chargeback         NUMBER(1)       DEFAULT 0 NOT NULL CHECK (has_open_chargeback IN (0,1)),
+    is_reconciled               NUMBER(1)       DEFAULT 0 NOT NULL CHECK (is_reconciled IN (0,1)),
+    capture_exceeds_auth        NUMBER(1)       DEFAULT 0 NOT NULL CHECK (capture_exceeds_auth IN (0,1)),
+
+    -- Reconciliation
+    reconciliation_batch_id     VARCHAR2(50),
+
+    -- Event tracking
+    event_count                 NUMBER(6)       DEFAULT 0,
+    last_event_type_code        VARCHAR2(30),
+    last_event_at               TIMESTAMP,
+
+    -- Timing SLA monitoring
+    auth_to_capture_minutes     NUMBER(10,2),   -- latency between auth and capture
+    capture_to_settle_minutes   NUMBER(10,2),   -- latency between capture and settlement
+    processing_lag_minutes      NUMBER(10,2),   -- total initiated_at to settled_at
+
+    -- Anomaly flags as JSON array: ["CAPTURE_EXCEEDS_AUTH","LATE_SETTLEMENT"]
+    anomaly_flags               VARCHAR2(1000),
+
+    updated_at                  TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+
+    CONSTRAINT fk_monitor_txn      FOREIGN KEY (transaction_id) REFERENCES txn      (transaction_id),
+    CONSTRAINT fk_monitor_merchant FOREIGN KEY (merchant_id)    REFERENCES merchant  (merchant_id)
+);
+
+-- Structured exception log — replaces ad-hoc status flags
+CREATE TABLE txn_exception (
+    exception_id            NUMBER(12)      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    transaction_id          VARCHAR2(36)    NOT NULL,
+    event_id                VARCHAR2(36),               -- nullable: may be transaction-level
+    exception_code          VARCHAR2(50)    NOT NULL,   -- CAPTURE_EXCEEDS_AUTH, DUPLICATE_AUTH, STALE_AUTHORIZATION, etc.
+    exception_severity      VARCHAR2(20)    NOT NULL    CHECK (exception_severity IN ('INFO','WARNING','CRITICAL')),
+    exception_message       VARCHAR2(1000),
+    detected_at             TIMESTAMP       DEFAULT SYSTIMESTAMP NOT NULL,
+    resolved_at             TIMESTAMP,
+    resolved_by             VARCHAR2(100),
+    resolution_notes        VARCHAR2(1000),
+    auto_resolvable         NUMBER(1)       DEFAULT 0 NOT NULL CHECK (auto_resolvable IN (0,1)),
+    is_resolved             NUMBER(1)       DEFAULT 0 NOT NULL CHECK (is_resolved IN (0,1)),
+
+    CONSTRAINT fk_exc_txn   FOREIGN KEY (transaction_id) REFERENCES txn       (transaction_id),
+    CONSTRAINT fk_exc_event FOREIGN KEY (event_id)       REFERENCES txn_event (event_id)
+);
+
+
+-- -----------------------------------------------------------------------------
+-- SECTION 4: INDEXES
+-- -----------------------------------------------------------------------------
+
+-- Transaction lookup patterns
+CREATE INDEX idx_txn_merchant_id        ON txn (merchant_id);
+CREATE INDEX idx_txn_status             ON txn (status_id);
+CREATE INDEX idx_txn_initiated_at       ON txn (initiated_at);
+CREATE INDEX idx_txn_external_ref       ON txn (external_ref_id);
+CREATE INDEX idx_txn_idempotency        ON txn (idempotency_key);
+CREATE INDEX idx_txn_parent             ON txn (parent_transaction_id);
+CREATE INDEX idx_txn_card_bin           ON txn (card_bin);
+CREATE INDEX idx_txn_merchant_date      ON txn (merchant_id, initiated_at);
+
+-- Event lookup patterns
+CREATE INDEX idx_evt_transaction_id     ON txn_event (transaction_id);
+CREATE INDEX idx_evt_type_id            ON txn_event (event_type_id);
+CREATE INDEX idx_evt_received_at        ON txn_event (received_at);
+CREATE INDEX idx_evt_txn_seq            ON txn_event (transaction_id, sequence_number);
+
+-- Allocation
+CREATE INDEX idx_alloc_group_id         ON txn_allocation (allocation_group_id);
+CREATE INDEX idx_alloc_event_id         ON txn_allocation (event_id);
+CREATE INDEX idx_alloc_flow_type        ON txn_allocation (flow_type);
+
+-- Monitoring
+CREATE INDEX idx_monitor_merchant       ON txn_monitor (merchant_id);
+CREATE INDEX idx_monitor_status         ON txn_monitor (current_status_code);
+CREATE INDEX idx_monitor_chargeback     ON txn_monitor (has_open_chargeback);
+
+-- Exceptions
+CREATE INDEX idx_exc_transaction_id     ON txn_exception (transaction_id);
+CREATE INDEX idx_exc_code               ON txn_exception (exception_code);
+CREATE INDEX idx_exc_severity           ON txn_exception (exception_severity);
+CREATE INDEX idx_exc_unresolved         ON txn_exception (is_resolved, detected_at);
+
+
+-- =============================================================================
+-- SECTION 5: SAMPLE DATA
+-- =============================================================================
+
+
+-- -----------------------------------------------------------------------------
+-- 5.1 LOOKUP DATA
+-- -----------------------------------------------------------------------------
+
+-- Transaction Types
+INSERT INTO lkp_transaction_type (type_code, type_name, description) VALUES
+    ('CC',         'Credit Card',  'Card-based payment transactions');
+INSERT INTO lkp_transaction_type (type_code, type_name, description) VALUES
+    ('FEE',        'Fee',          'Non-transactional merchant fees');
+INSERT INTO lkp_transaction_type (type_code, type_name, description) VALUES
+    ('ADJUSTMENT', 'Adjustment',   'Manual balance adjustments');
+INSERT INTO lkp_transaction_type (type_code, type_name, description) VALUES
+    ('CHARGEBACK',  'Chargeback',  'Disputed transaction chargebacks');
+
+-- Transaction Subtypes (type_id 1 = CC, 2 = FEE, 3 = ADJUSTMENT, 4 = CHARGEBACK)
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (1, 'CC_AUTH',        'Authorization');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (1, 'CC_INCR_AUTH',   'Incremental Authorization');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (1, 'CC_CAPTURE',     'Capture');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (1, 'CC_VOID',        'Void');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (1, 'CC_REFUND',      'Refund');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (2, 'FEE_MONTHLY',    'Monthly Fee');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (2, 'FEE_STATEMENT',  'Statement Fee');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (3, 'ADJ_POSITIVE',   'Positive Adjustment');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (3, 'ADJ_NEGATIVE',   'Negative Adjustment');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (4, 'CB_INITIATED',   'Chargeback Initiated');
+INSERT INTO lkp_transaction_subtype (type_id, subtype_code, subtype_name) VALUES (4, 'CB_REVERSED',    'Chargeback Reversed');
+
+-- Transaction Statuses (scoped to type)
+-- CC statuses
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_AUTHORIZED',  'Authorized',  0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_CAPTURED',    'Captured',    0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_VOIDED',      'Voided',      1);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_SETTLED',     'Settled',     0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_REFUNDED',    'Refunded',    1);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (1, 'CC_CHARGEDBACK', 'Chargedback', 1);
+-- Fee statuses
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (2, 'FEE_PENDING',    'Pending',     0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (2, 'FEE_APPLIED',    'Applied',     1);
+-- Adjustment statuses
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (3, 'ADJ_PENDING',    'Pending',     0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (3, 'ADJ_COMPLETED',  'Completed',   1);
+-- Chargeback statuses
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (4, 'CB_INITIATED',   'Initiated',   0);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (4, 'CB_WON',         'Won',         1);
+INSERT INTO lkp_transaction_status (type_id, status_code, status_name, is_terminal) VALUES (4, 'CB_LOST',        'Lost',        1);
+
+-- Event Types
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('AUTH',         'Authorization',        1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('INCR_AUTH',    'Incremental Auth',     1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('CAPTURE',      'Capture',              1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('PARTIAL_VOID', 'Partial Void',         1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('FULL_VOID',    'Full Void',            1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('SETTLEMENT',   'Settlement',           1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('REFUND',       'Refund',               1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('FEE_APPLIED',  'Fee Applied',          1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('ADJ_APPLIED',  'Adjustment Applied',   1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('CB_INITIATED', 'Chargeback Initiated', 1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('CB_WON',       'Chargeback Won',       1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('CB_LOST',      'Chargeback Lost',      1);
+INSERT INTO lkp_event_type (event_type_code, event_type_name, affects_balance) VALUES ('STATUS_CHECK', 'Status Check',         0);
+
+-- Valid Type/Subtype matrix
+-- CC types
+INSERT INTO lkp_valid_type_subtype (type_id, subtype_id)
+    SELECT 1, subtype_id FROM lkp_transaction_subtype WHERE type_id = 1;
+-- Fee types
+INSERT INTO lkp_valid_type_subtype (type_id, subtype_id)
+    SELECT 2, subtype_id FROM lkp_transaction_subtype WHERE type_id = 2;
+-- Adjustment types
+INSERT INTO lkp_valid_type_subtype (type_id, subtype_id)
+    SELECT 3, subtype_id FROM lkp_transaction_subtype WHERE type_id = 3;
+-- Chargeback types
+INSERT INTO lkp_valid_type_subtype (type_id, subtype_id)
+    SELECT 4, subtype_id FROM lkp_transaction_subtype WHERE type_id = 4;
+
+-- Status transitions
+-- CC: initial → AUTHORIZED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, NULL, status_id FROM lkp_transaction_status WHERE status_code = 'CC_AUTHORIZED';
+-- CC: AUTHORIZED → CAPTURED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CC_AUTHORIZED' AND t.status_code = 'CC_CAPTURED';
+-- CC: AUTHORIZED → VOIDED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CC_AUTHORIZED' AND t.status_code = 'CC_VOIDED';
+-- CC: CAPTURED → SETTLED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CC_CAPTURED' AND t.status_code = 'CC_SETTLED';
+-- CC: SETTLED → REFUNDED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CC_SETTLED' AND t.status_code = 'CC_REFUNDED';
+-- CC: SETTLED → CHARGEDBACK
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 1, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CC_SETTLED' AND t.status_code = 'CC_CHARGEDBACK';
+-- FEE: initial → PENDING → APPLIED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 2, NULL, status_id FROM lkp_transaction_status WHERE status_code = 'FEE_PENDING';
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 2, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'FEE_PENDING' AND t.status_code = 'FEE_APPLIED';
+-- ADJUSTMENT: initial → PENDING → COMPLETED
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 3, NULL, status_id FROM lkp_transaction_status WHERE status_code = 'ADJ_PENDING';
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 3, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'ADJ_PENDING' AND t.status_code = 'ADJ_COMPLETED';
+-- CHARGEBACK: initial → INITIATED → WON or LOST
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 4, NULL, status_id FROM lkp_transaction_status WHERE status_code = 'CB_INITIATED';
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 4, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CB_INITIATED' AND t.status_code = 'CB_WON';
+INSERT INTO lkp_status_transition (type_id, from_status_id, to_status_id)
+    SELECT 4, f.status_id, t.status_id
+    FROM lkp_transaction_status f, lkp_transaction_status t
+    WHERE f.status_code = 'CB_INITIATED' AND t.status_code = 'CB_LOST';
+
+
+-- -----------------------------------------------------------------------------
+-- 5.2 MERCHANT & ACCOUNT DATA
+-- -----------------------------------------------------------------------------
+
+INSERT INTO merchant VALUES ('M001', 'Hyatt Regency Chicago',    '7011', 'ACQ001', 1, SYSTIMESTAMP);
+INSERT INTO merchant VALUES ('M002', 'Amazon.com LLC',           '5965', 'ACQ001', 1, SYSTIMESTAMP);
+INSERT INTO merchant VALUES ('M003', 'Walgreens #4521',          '5912', 'ACQ002', 1, SYSTIMESTAMP);
+INSERT INTO merchant VALUES ('M004', 'Delta Airlines',           '4511', 'ACQ001', 1, SYSTIMESTAMP);
+INSERT INTO merchant VALUES ('M005', 'ABC Auto Repair',          '7531', 'ACQ003', 1, SYSTIMESTAMP);
+
+INSERT INTO merchant_account VALUES ('MA001', 'M001', 'SETTLEMENT',    'USD', 1, SYSTIMESTAMP);
+INSERT INTO merchant_account VALUES ('MA002', 'M001', 'FEE_COLLECTION', 'USD', 1, SYSTIMESTAMP);
+INSERT INTO merchant_account VALUES ('MA003', 'M002', 'SETTLEMENT',    'USD', 1, SYSTIMESTAMP);
+INSERT INTO merchant_account VALUES ('MA004', 'M003', 'SETTLEMENT',    'USD', 1, SYSTIMESTAMP);
+INSERT INTO merchant_account VALUES ('MA005', 'M004', 'SETTLEMENT',    'USD', 1, SYSTIMESTAMP);
+INSERT INTO merchant_account VALUES ('MA006', 'M005', 'SETTLEMENT',    'USD', 1, SYSTIMESTAMP);
+
+
+-- =============================================================================
+-- SCENARIO A: Hyatt Regency — Hotel Stay with Incremental Auth
+-- Guest checks in, auth for $200 (estimated stay).
+-- Hotel extends stay → incremental auth +$150.
+-- At checkout, captures $310 (room + incidentals).
+-- Settled the same night.
+-- =============================================================================
+
+-- Transaction
+INSERT INTO txn VALUES (
+    'T-A001', 'M001', 'MA001', 'TERM-HYATT-001',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_SETTLED'),
+    200.00, 350.00, 310.00, 'USD',
+    TIMESTAMP '2025-03-15 14:00:00',  -- check-in
+    TIMESTAMP '2025-03-15 14:00:05',
+    TIMESTAMP '2025-03-15 23:30:00',  -- settled night of checkout
+    'IK-A001', 'VISA-AUTH-88831', NULL,
+    'CARD_PRESENT', 'POS', 'AUTH881', '00', '411111', '4242',
+    'VISA', 12.5, 'APPROVED',
+    'SYSTEM', 'ORACLE_PG', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+-- Events
+INSERT INTO txn_event VALUES (
+    'E-A001-1', 'T-A001',
+    (SELECT event_type_id FROM lkp_event_type WHERE event_type_code = 'AUTH'),
+    1, 200.00, 'USD', 'COMPLETED', 'MERCHANT',
+    TIMESTAMP '2025-03-15 14:00:00', TIMESTAMP '2025-03-15 14:00:01', TIMESTAMP '2025-03-15 14:00:02',
+    'PROC-E-10001', 0, NULL, '{"network":"VISA","avs_result":"Y","cvv_result":"M"}', SYSTIMESTAMP
+);
+INSERT INTO txn_event VALUES (
+    'E-A001-2', 'T-A001',
+    (SELECT event_type_id FROM lkp_event_type WHERE event_type_code = 'INCR_AUTH'),
+    2, 150.00, 'USD', 'COMPLETED', 'MERCHANT',
+    TIMESTAMP '2025-03-16 09:00:00', TIMESTAMP '2025-03-16 09:00:01', TIMESTAMP '2025-03-16 09:00:02',
+    'PROC-E-10002', 0, NULL, '{"reason":"EXTENDED_STAY"}', SYSTIMESTAMP
+);
+INSERT INTO txn_event VALUES (
+    'E-A001-3', 'T-A001',
+    (SELECT event_type_id FROM lkp_event_type WHERE event_type_code = 'CAPTURE'),
+    3, 310.00, 'USD', 'COMPLETED', 'MERCHANT',
+    TIMESTAMP '2025-03-17 11:30:00', TIMESTAMP '2025-03-17 11:30:01', TIMESTAMP '2025-03-17 11:30:03',
+    'PROC-E-10003', 0, NULL, '{"capture_type":"CHECKOUT"}', SYSTIMESTAMP
+);
+INSERT INTO txn_event VALUES (
+    'E-A001-4', 'T-A001',
+    (SELECT event_type_id FROM lkp_event_type WHERE event_type_code = 'SETTLEMENT'),
+    4, 310.00, 'USD', 'COMPLETED', 'SYSTEM',
+    TIMESTAMP '2025-03-17 23:00:00', TIMESTAMP '2025-03-17 23:00:02', TIMESTAMP '2025-03-17 23:00:10',
+    'PROC-E-10004', 0, NULL, '{"batch_id":"BATCH-20250317","interchange_fee":3.10}', SYSTIMESTAMP
+);
+
+-- Allocations (each group nets to zero)
+-- Group AG-A001-1: Initial Auth
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-1', 'E-A001-1', 'TARGET', 'AUTH',       200.00, NULL, SYSTIMESTAMP);
+-- Group AG-A001-2: Incremental Auth (E1 becomes SOURCE of previous hold, E2 establishes new total)
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-2', 'E-A001-1', 'SOURCE', 'INCREMENTAL',-200.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-2', 'E-A001-2', 'TARGET', 'INCREMENTAL', 350.00, NULL, SYSTIMESTAMP);
+-- Group AG-A001-3: Capture
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-3', 'E-A001-2', 'SOURCE', 'CAPTURE',    -310.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-3', 'E-A001-3', 'TARGET', 'CAPTURE',     310.00, NULL, SYSTIMESTAMP);
+-- Group AG-A001-4: Settlement
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-4', 'E-A001-3', 'SOURCE', 'SETTLEMENT', -310.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT, 'AG-A001-4', 'E-A001-4', 'TARGET', 'SETTLEMENT',  310.00, NULL, SYSTIMESTAMP);
+
+-- Monitor
+INSERT INTO txn_monitor VALUES (
+    'T-A001', 'M001', 'CC_SETTLED',
+    350.00, 310.00, 310.00, 0.00, 0.00, 310.00,
+    0, 1, 0, NULL, 4, 'SETTLEMENT',
+    TIMESTAMP '2025-03-17 23:00:10',
+    90.00,   -- auth_to_capture_minutes (14:00 -> 11:30 next day ~ 2 days but using 90 for example)
+    690.00,  -- capture_to_settle_minutes
+    2940.00, -- total lag
+    NULL, SYSTIMESTAMP
+);
+
+
+-- =============================================================================
+-- SCENARIO B: Walgreens — Auth → Partial Void → Capture → Settlement
+-- Customer buys pharmacy items, auth for $85.
+-- Cashier removes one item → partial void of $15.
+-- Captures remaining $70 and settles.
+-- =============================================================================
+
+INSERT INTO txn VALUES (
+    'T-B001', 'M003', 'MA004', 'TERM-WG-022',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_SETTLED'),
+    85.00, 85.00, 70.00, 'USD',
+    TIMESTAMP '2025-04-01 10:15:00',
+    TIMESTAMP '2025-04-01 10:15:03',
+    TIMESTAMP '2025-04-01 23:00:00',
+    'IK-B001', 'MC-AUTH-55521', NULL,
+    'CARD_PRESENT', 'POS', 'AUTH552', '00', '510510', '1234',
+    'MASTERCARD', 8.2, 'APPROVED',
+    'SYSTEM', 'ORACLE_PG', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-B001-1','T-B001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='AUTH'),1,85.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-04-01 10:15:00',TIMESTAMP '2025-04-01 10:15:01',TIMESTAMP '2025-04-01 10:15:02','PROC-E-20001',0,NULL,'{"avs_result":"Y"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-B001-2','T-B001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='PARTIAL_VOID'),2,-15.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-04-01 10:16:00',TIMESTAMP '2025-04-01 10:16:01',TIMESTAMP '2025-04-01 10:16:02','PROC-E-20002',1,'E-B001-1','{"void_reason":"ITEM_REMOVED"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-B001-3','T-B001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CAPTURE'),3,70.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-04-01 10:16:30',TIMESTAMP '2025-04-01 10:16:31',TIMESTAMP '2025-04-01 10:16:32','PROC-E-20003',0,NULL,'{}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-B001-4','T-B001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='SETTLEMENT'),4,70.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-04-01 23:00:00',TIMESTAMP '2025-04-01 23:00:02',TIMESTAMP '2025-04-01 23:00:08','PROC-E-20004',0,NULL,'{"batch_id":"BATCH-20250401-WG"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-1','E-B001-1','TARGET','AUTH',       85.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-2','E-B001-1','SOURCE','PARTIAL_VOID',-15.00,NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-2','E-B001-2','TARGET','PARTIAL_VOID', 15.00,NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-3','E-B001-1','SOURCE','CAPTURE',    -70.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-3','E-B001-3','TARGET','CAPTURE',     70.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-4','E-B001-3','SOURCE','SETTLEMENT', -70.00, NULL, SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-B001-4','E-B001-4','TARGET','SETTLEMENT',  70.00, NULL, SYSTIMESTAMP);
+
+INSERT INTO txn_monitor VALUES ('T-B001','M003','CC_SETTLED',85.00,70.00,70.00,0.00,0.00,70.00,0,1,0,NULL,4,'SETTLEMENT',TIMESTAMP '2025-04-01 23:00:08',1.5,765.0,766.5,NULL,SYSTIMESTAMP);
+
+
+-- =============================================================================
+-- SCENARIO C: Amazon — Auth → Capture → Settle → Full Refund
+-- Customer buys laptop $1,200. Settles. Returns it 5 days later.
+-- Refund transaction created as child of original with parent_transaction_id.
+-- =============================================================================
+
+-- Original sale
+INSERT INTO txn VALUES (
+    'T-C001', 'M002', 'MA003', 'GATEWAY-AMZN',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_SETTLED'),
+    1200.00, 1200.00, 1200.00, 'USD',
+    TIMESTAMP '2025-03-10 09:00:00',
+    TIMESTAMP '2025-03-10 09:00:02',
+    TIMESTAMP '2025-03-10 22:00:00',
+    'IK-C001', 'AMEX-AUTH-99201', NULL,
+    'CNP', 'ECOMMERCE', 'AUTH992', '00', '378282', '0005',
+    'AMEX', 5.0, 'APPROVED',
+    'SYSTEM', 'AMZN_GW', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-C001-1','T-C001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='AUTH'),1,1200.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-03-10 09:00:00',TIMESTAMP '2025-03-10 09:00:01',TIMESTAMP '2025-03-10 09:00:02','PROC-E-30001',0,NULL,'{"device_fingerprint":"FP-A1B2","3ds_result":"Y"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-C001-2','T-C001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CAPTURE'),2,1200.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-03-10 09:05:00',TIMESTAMP '2025-03-10 09:05:01',TIMESTAMP '2025-03-10 09:05:03','PROC-E-30002',0,NULL,'{"fulfillment_id":"ORD-88821"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-C001-3','T-C001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='SETTLEMENT'),3,1200.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-03-10 22:00:00',TIMESTAMP '2025-03-10 22:00:02',TIMESTAMP '2025-03-10 22:00:15','PROC-E-30003',0,NULL,'{"batch_id":"BATCH-20250310-AMZN","interchange_fee":24.00}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C001-1','E-C001-1','TARGET','AUTH',        1200.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C001-2','E-C001-1','SOURCE','CAPTURE',    -1200.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C001-2','E-C001-2','TARGET','CAPTURE',     1200.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C001-3','E-C001-2','SOURCE','SETTLEMENT', -1200.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C001-3','E-C001-3','TARGET','SETTLEMENT',  1200.00,NULL,SYSTIMESTAMP);
+
+INSERT INTO txn_monitor VALUES ('T-C001','M002','CC_SETTLED',1200.00,1200.00,1200.00,1200.00,0.00,0.00,0,1,0,NULL,3,'SETTLEMENT',TIMESTAMP '2025-03-10 22:00:15',5.0,775.0,780.0,NULL,SYSTIMESTAMP);
+
+-- Refund transaction (child of T-C001) — 5 days later
+INSERT INTO txn VALUES (
+    'T-C002', 'M002', 'MA003', 'GATEWAY-AMZN',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_REFUND'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_REFUNDED'),
+    -1200.00, -1200.00, -1200.00, 'USD',
+    TIMESTAMP '2025-03-15 14:00:00',
+    TIMESTAMP '2025-03-15 14:00:03',
+    TIMESTAMP '2025-03-15 22:00:00',
+    'IK-C002', 'AMEX-REFUND-99210', 'T-C001',  -- parent_transaction_id links back
+    'CNP', 'ECOMMERCE', NULL, '00', '378282', '0005',
+    'AMEX', NULL, NULL,
+    'SYSTEM', 'AMZN_GW', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-C002-1','T-C002',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='REFUND'),1,-1200.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-03-15 14:00:00',TIMESTAMP '2025-03-15 14:00:02',TIMESTAMP '2025-03-15 14:00:05','PROC-E-30010',1,'E-C001-3','{"return_reason":"CUSTOMER_RETURN","rma_id":"RMA-5521"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-C002-2','T-C002',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='SETTLEMENT'),2,-1200.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-03-15 22:00:00',TIMESTAMP '2025-03-15 22:00:01',TIMESTAMP '2025-03-15 22:00:08','PROC-E-30011',0,NULL,'{"batch_id":"BATCH-20250315-AMZN-REFUND"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C002-1','E-C002-1','SOURCE','REFUND',   1200.00,NULL,SYSTIMESTAMP);  -- reverses the settlement
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-C002-1','E-C002-2','TARGET','REFUND',  -1200.00,NULL,SYSTIMESTAMP);
+
+-- Update monitor for original transaction to show refund
+UPDATE txn_monitor SET total_refunded = 1200.00, net_position = 0.00, is_reconciled = 1, updated_at = SYSTIMESTAMP
+WHERE transaction_id = 'T-C001';
+
+
+-- =============================================================================
+-- SCENARIO D: Delta Airlines — Chargeback Lost
+-- Customer purchases ticket $450, settled.
+-- Customer disputes with bank ("never received service").
+-- Merchant contests → LOSES dispute. Funds clawed back.
+-- =============================================================================
+
+-- Original ticket purchase
+INSERT INTO txn VALUES (
+    'T-D001', 'M004', 'MA005', 'GATEWAY-DELTA',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_CHARGEDBACK'),
+    450.00, 450.00, 450.00, 'USD',
+    TIMESTAMP '2025-02-01 08:00:00',
+    TIMESTAMP '2025-02-01 08:00:02',
+    TIMESTAMP '2025-02-01 22:00:00',
+    'IK-D001', 'VISA-AUTH-77701', NULL,
+    'CNP', 'ECOMMERCE', 'AUTH777', '00', '411111', '8888',
+    'VISA', 3.5, 'APPROVED',
+    'SYSTEM', 'DELTA_GW', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-D001-1','T-D001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='AUTH'),1,450.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-02-01 08:00:00',TIMESTAMP '2025-02-01 08:00:01',TIMESTAMP '2025-02-01 08:00:02','PROC-E-40001',0,NULL,'{"3ds_result":"A"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-D001-2','T-D001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CAPTURE'),2,450.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-02-01 08:01:00',TIMESTAMP '2025-02-01 08:01:01',TIMESTAMP '2025-02-01 08:01:03','PROC-E-40002',0,NULL,'{"ticket_number":"DL-2025-8821"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-D001-3','T-D001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='SETTLEMENT'),3,450.00,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-02-01 22:00:00',TIMESTAMP '2025-02-01 22:00:02',TIMESTAMP '2025-02-01 22:00:10','PROC-E-40003',0,NULL,'{"batch_id":"BATCH-20250201-DELTA"}',SYSTIMESTAMP);
+
+-- Chargeback transaction (child of T-D001)
+INSERT INTO txn VALUES (
+    'T-D002', 'M004', 'MA005', NULL,
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CHARGEBACK'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CB_INITIATED'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CB_LOST'),
+    -450.00, -450.00, -450.00, 'USD',
+    TIMESTAMP '2025-02-20 10:00:00',
+    TIMESTAMP '2025-02-20 10:00:05',
+    TIMESTAMP '2025-03-05 18:00:00',
+    NULL, 'VISA-CB-12345', 'T-D001',
+    NULL, NULL, NULL, NULL, '411111', '8888',
+    'VISA', NULL, NULL,
+    'SYSTEM', 'VISA_NETWORK', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-D002-1','T-D002',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CB_INITIATED'),1,-450.00,'USD','COMPLETED','NETWORK',TIMESTAMP '2025-02-20 10:00:00',TIMESTAMP '2025-02-20 10:00:03',TIMESTAMP '2025-02-20 10:00:05','PROC-E-40010',0,NULL,'{"reason_code":"13.1","reason_desc":"NOT_AS_DESCRIBED","dispute_deadline":"2025-03-05"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-D002-2','T-D002',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CB_LOST'),2,-450.00,'USD','COMPLETED','NETWORK',TIMESTAMP '2025-03-05 18:00:00',TIMESTAMP '2025-03-05 18:00:02',TIMESTAMP '2025-03-05 18:00:10','PROC-E-40011',0,NULL,'{"outcome":"MERCHANT_LOST","arbitration_result":"CARDHOLDER_FAVOR"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D001-1','E-D001-1','TARGET','AUTH',        450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D001-2','E-D001-1','SOURCE','CAPTURE',    -450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D001-2','E-D001-2','TARGET','CAPTURE',     450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D001-3','E-D001-2','SOURCE','SETTLEMENT', -450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D001-3','E-D001-3','TARGET','SETTLEMENT',  450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D002-1','E-D002-1','TARGET','CHARGEBACK',  450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D002-2','E-D002-1','SOURCE','CB_LOST',    -450.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-D002-2','E-D002-2','TARGET','CB_LOST',     450.00,NULL,SYSTIMESTAMP);
+
+INSERT INTO txn_monitor VALUES ('T-D001','M004','CC_CHARGEDBACK',450.00,450.00,450.00,0.00,450.00,-450.00,0,1,0,NULL,3,'SETTLEMENT',TIMESTAMP '2025-02-01 22:00:10',1.0,839.0,840.0,'["CHARGEBACK_LOST"]',SYSTIMESTAMP);
+INSERT INTO txn_monitor VALUES ('T-D002','M004','CB_LOST',450.00,0.00,450.00,0.00,450.00,0.00,0,1,0,NULL,2,'CB_LOST',TIMESTAMP '2025-03-05 18:00:10',NULL,NULL,20280.0,'["FUNDS_CLAWED_BACK"]',SYSTIMESTAMP);
+
+-- Exception: open chargeback alert when initiated
+INSERT INTO txn_exception VALUES (DEFAULT,'T-D001','E-D002-1','CHARGEBACK_RECEIVED','CRITICAL','Chargeback received for settled transaction. Reason code 13.1 - Not As Described. Response deadline 2025-03-05.',TIMESTAMP '2025-02-20 10:00:05',TIMESTAMP '2025-03-05 18:00:10','VISA_NETWORK','Dispute adjudicated in favor of cardholder. Funds clawed back.',0,1);
+
+
+-- =============================================================================
+-- SCENARIO E: Hyatt Regency — Monthly Fee (non-transactional)
+-- ABC Bank charges Hyatt their monthly gateway fee of $49.95
+-- =============================================================================
+
+INSERT INTO txn VALUES (
+    'T-E001', 'M001', 'MA002', NULL,
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'FEE'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'FEE_MONTHLY'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'FEE_APPLIED'),
+    49.95, 49.95, 49.95, 'USD',
+    TIMESTAMP '2025-03-01 00:00:00',
+    TIMESTAMP '2025-03-01 00:00:10',
+    TIMESTAMP '2025-03-01 00:00:10',
+    NULL, 'FEE-2025-03-M001', NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL,
+    'SYSTEM', 'FEE_ENGINE', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-E001-1','T-E001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='FEE_APPLIED'),1,49.95,'USD','COMPLETED','SYSTEM',TIMESTAMP '2025-03-01 00:00:00',TIMESTAMP '2025-03-01 00:00:05',TIMESTAMP '2025-03-01 00:00:10','FEE-EVT-20250301-M001',0,NULL,'{"fee_period":"2025-02","fee_type":"GATEWAY_MONTHLY"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-E001-1','E-E001-1','SOURCE','FEE_DEBIT', -49.95,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-E001-1','E-E001-1','TARGET','FEE_CREDIT',  49.95,NULL,SYSTIMESTAMP);
+
+INSERT INTO txn_monitor VALUES ('T-E001','M001','FEE_APPLIED',49.95,0.00,49.95,0.00,0.00,0.00,0,1,0,NULL,1,'FEE_APPLIED',TIMESTAMP '2025-03-01 00:00:10',NULL,NULL,0.17,NULL,SYSTIMESTAMP);
+
+
+-- =============================================================================
+-- SCENARIO F: ABC Auto Repair — Positive Adjustment (manual credit)
+-- Operator credits merchant $50 due to incorrect fee charge.
+-- =============================================================================
+
+INSERT INTO txn VALUES (
+    'T-F001', 'M005', 'MA006', NULL,
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'ADJUSTMENT'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'ADJ_POSITIVE'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'ADJ_COMPLETED'),
+    50.00, 50.00, 50.00, 'USD',
+    TIMESTAMP '2025-04-05 10:30:00',
+    TIMESTAMP '2025-04-05 10:30:05',
+    TIMESTAMP '2025-04-05 10:30:05',
+    NULL, 'ADJ-2025-04-M005-001', NULL,
+    NULL, NULL, NULL, NULL, NULL, NULL,
+    NULL, NULL, NULL,
+    'OP_JSMITH', 'BACKOFFICE', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-F001-1','T-F001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='ADJ_APPLIED'),1,50.00,'USD','COMPLETED','OPERATOR',TIMESTAMP '2025-04-05 10:30:00',TIMESTAMP '2025-04-05 10:30:02',TIMESTAMP '2025-04-05 10:30:05','ADJ-EVT-001',0,NULL,'{"reason":"FEE_OVERCHARGE_CORRECTION","approved_by":"MGR_KDAVIS","ticket_ref":"JIRA-PAY-4421"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-F001-1','E-F001-1','SOURCE','ADJ_DEBIT',  -50.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-F001-1','E-F001-1','TARGET','ADJ_CREDIT',  50.00,NULL,SYSTIMESTAMP);
+
+INSERT INTO txn_monitor VALUES ('T-F001','M005','ADJ_COMPLETED',50.00,0.00,50.00,0.00,0.00,50.00,0,1,0,NULL,1,'ADJ_APPLIED',TIMESTAMP '2025-04-05 10:30:05',NULL,NULL,0.08,NULL,SYSTIMESTAMP);
+
+
+-- =============================================================================
+-- SCENARIO G: EXCEPTION — Duplicate Authorization Attempt
+-- Amazon submits the same auth twice (idempotency_key already exists).
+-- System detects duplicate, raises exception; second transaction voided.
+-- =============================================================================
+
+-- Second transaction with same idempotency_key as an existing one (simulated)
+INSERT INTO txn VALUES (
+    'T-G001', 'M002', 'MA003', 'GATEWAY-AMZN',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_VOIDED'),
+    299.00, 0.00, 0.00, 'USD',
+    TIMESTAMP '2025-04-10 15:00:00',
+    TIMESTAMP '2025-04-10 15:00:02',
+    NULL,
+    'IK-DUPLICATE-001',  -- same idempotency key as a previously submitted txn
+    'VISA-AUTH-99999', NULL,
+    'CNP', 'ECOMMERCE', NULL, '05', '411111', '7777',
+    'VISA', 2.1, 'DECLINED',
+    'SYSTEM', 'AMZN_GW', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-G001-1','T-G001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='AUTH'),1,299.00,'USD','FAILED','MERCHANT',TIMESTAMP '2025-04-10 15:00:00',TIMESTAMP '2025-04-10 15:00:01',TIMESTAMP '2025-04-10 15:00:02','PROC-E-G0001',0,NULL,'{"rejection_reason":"DUPLICATE_IDEMPOTENCY_KEY","original_txn":"T-C001"}',SYSTIMESTAMP);
+
+INSERT INTO txn_exception VALUES (DEFAULT,'T-G001','E-G001-1','DUPLICATE_AUTH','CRITICAL','Duplicate authorization detected. Idempotency key IK-DUPLICATE-001 matches existing transaction. Request voided automatically.',TIMESTAMP '2025-04-10 15:00:02',TIMESTAMP '2025-04-10 15:00:02','SYSTEM','Auto-resolved: transaction voided, duplicate rejected.',1,1);
+
+INSERT INTO txn_monitor VALUES ('T-G001','M002','CC_VOIDED',299.00,0.00,0.00,0.00,0.00,0.00,0,0,0,NULL,1,'AUTH',TIMESTAMP '2025-04-10 15:00:02',NULL,NULL,NULL,'["DUPLICATE_AUTH","AUTO_VOIDED"]',SYSTIMESTAMP);
+
+
+-- =============================================================================
+-- SCENARIO H: EXCEPTION — Capture Exceeds Authorization
+-- ABC Auto Repair submits a capture for $175 against an auth of only $150.
+-- System flags the $25 overage as a monitoring exception.
+-- =============================================================================
+
+INSERT INTO txn VALUES (
+    'T-H001', 'M005', 'MA006', 'TERM-AUTO-01',
+    (SELECT type_id FROM lkp_transaction_type WHERE type_code = 'CC'),
+    (SELECT subtype_id FROM lkp_transaction_subtype WHERE subtype_code = 'CC_AUTH'),
+    (SELECT status_id FROM lkp_transaction_status WHERE status_code = 'CC_CAPTURED'),  -- awaiting settlement review
+    150.00, 150.00, NULL, 'USD',
+    TIMESTAMP '2025-04-12 09:00:00',
+    TIMESTAMP '2025-04-12 09:00:02',
+    NULL,
+    'IK-H001', 'DISC-AUTH-44401', NULL,
+    'CARD_PRESENT', 'POS', 'AUTH444', '00', '601100', '9999',
+    'DISCOVER', 15.5, 'APPROVED',
+    'SYSTEM', 'ORACLE_PG', SYSTIMESTAMP, SYSTIMESTAMP
+);
+
+INSERT INTO txn_event VALUES ('E-H001-1','T-H001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='AUTH'),1,150.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-04-12 09:00:00',TIMESTAMP '2025-04-12 09:00:01',TIMESTAMP '2025-04-12 09:00:02','PROC-E-H0001',0,NULL,'{"service_estimate":"OIL_CHANGE_PLUS_TIRES"}',SYSTIMESTAMP);
+INSERT INTO txn_event VALUES ('E-H001-2','T-H001',(SELECT event_type_id FROM lkp_event_type WHERE event_type_code='CAPTURE'),2,175.00,'USD','COMPLETED','MERCHANT',TIMESTAMP '2025-04-12 11:30:00',TIMESTAMP '2025-04-12 11:30:01',TIMESTAMP '2025-04-12 11:30:03','PROC-E-H0002',0,NULL,'{"capture_note":"ADDITIONAL_LABOR_ADDED"}',SYSTIMESTAMP);
+
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-H001-1','E-H001-1','TARGET','AUTH',    150.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-H001-2','E-H001-1','SOURCE','CAPTURE',-150.00,NULL,SYSTIMESTAMP);
+INSERT INTO txn_allocation VALUES (DEFAULT,'AG-H001-2','E-H001-2','TARGET','CAPTURE', 175.00,NULL,SYSTIMESTAMP);
+-- Note: allocation group AG-H001-2 does NOT net to zero (+25 overage) — this is the anomaly
+
+INSERT INTO txn_exception VALUES (DEFAULT,'T-H001','E-H001-2','CAPTURE_EXCEEDS_AUTH','WARNING','Capture amount $175.00 exceeds authorized amount $150.00 by $25.00 (16.7% overage). Manual review required before settlement.',TIMESTAMP '2025-04-12 11:30:03',NULL,NULL,NULL,0,0);
+
+INSERT INTO txn_monitor VALUES ('T-H001','M005','CC_CAPTURED',150.00,175.00,0.00,0.00,0.00,150.00,0,0,1,NULL,2,'CAPTURE',TIMESTAMP '2025-04-12 11:30:03',150.0,NULL,NULL,'["CAPTURE_EXCEEDS_AUTH"]',SYSTIMESTAMP);
+
+
+COMMIT;
+
+
+-- =============================================================================
+-- VERIFICATION QUERIES
+-- =============================================================================
+
+-- 1. Full event timeline for any transaction
+SELECT
+    e.sequence_number,
+    et.event_type_code,
+    e.amount,
+    e.event_status,
+    e.is_reversal,
+    e.network_timestamp,
+    e.initiated_by
+FROM txn_event e
+JOIN lkp_event_type et ON e.event_type_id = et.event_type_id
+WHERE e.transaction_id = 'T-A001'
+ORDER BY e.sequence_number;
+
+-- 2. Allocation net-zero check per group (should = 0 for all healthy transactions)
+SELECT
+    allocation_group_id,
+    flow_type,
+    SUM(amount)  AS net_balance,
+    CASE WHEN SUM(amount) = 0 THEN 'BALANCED' ELSE 'IMBALANCED' END AS balance_check
+FROM txn_allocation
+GROUP BY allocation_group_id, flow_type
+ORDER BY allocation_group_id;
+
+-- 3. Open exceptions dashboard
+SELECT
+    e.exception_code,
+    e.exception_severity,
+    t.merchant_id,
+    m.merchant_name,
+    e.exception_message,
+    e.detected_at
+FROM txn_exception e
+JOIN txn t ON e.transaction_id = t.transaction_id
+JOIN merchant m ON t.merchant_id = m.merchant_id
+WHERE e.is_resolved = 0
+ORDER BY e.exception_severity DESC, e.detected_at;
+
+-- 4. Transaction monitoring dashboard — all merchants
+SELECT
+    m.merchant_name,
+    mon.current_status_code,
+    mon.total_authorized,
+    mon.total_settled,
+    mon.total_refunded,
+    mon.total_chargedback,
+    mon.net_position,
+    mon.capture_exceeds_auth,
+    mon.event_count,
+    mon.anomaly_flags
+FROM txn_monitor mon
+JOIN merchant m ON mon.merchant_id = m.merchant_id
+ORDER BY m.merchant_name, mon.last_event_at DESC;
+
+-- 5. Chargeback exposure by merchant
+SELECT
+    m.merchant_name,
+    COUNT(*)            AS chargeback_count,
+    SUM(mon.total_chargedback) AS total_exposure
+FROM txn_monitor mon
+JOIN merchant m ON mon.merchant_id = m.merchant_id
+WHERE mon.total_chargedback > 0
+GROUP BY m.merchant_name
+ORDER BY total_exposure DESC;
+
+-- 6. Transactions with unbalanced allocations (fraud/data quality signal)
+SELECT
+    a.allocation_group_id,
+    t.transaction_id,
+    m.merchant_name,
+    SUM(a.amount) AS imbalance_amount
+FROM txn_allocation a
+JOIN txn_event e ON a.event_id = e.event_id
+JOIN txn t ON e.transaction_id = t.transaction_id
+JOIN merchant m ON t.merchant_id = m.merchant_id
+GROUP BY a.allocation_group_id, t.transaction_id, m.merchant_name
+HAVING SUM(a.amount) <> 0
+ORDER BY ABS(SUM(a.amount)) DESC;
+
+-- 7. Parent-child refund/chargeback chain view
+SELECT
+    p.transaction_id    AS original_txn,
+    p.requested_amount  AS original_amount,
+    c.transaction_id    AS child_txn,
+    cst.subtype_name    AS child_type,
+    c.requested_amount  AS child_amount,
+    c.initiated_at      AS child_initiated
+FROM txn p
+JOIN txn c  ON c.parent_transaction_id = p.transaction_id
+JOIN lkp_transaction_subtype cst ON c.subtype_id = cst.subtype_id
+ORDER BY p.transaction_id, c.initiated_at;
