@@ -14,3 +14,60 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Active/Active Configuration Update – Production Readiness & Ownership Considerations
+
+This update is related to the active/active configuration enhancement and determining the appropriate production rollout approach.
+
+The domain api.x.com was originally managed by the Retail team. Last year, Retail migrated off this domain and requested the CIB team to assume ownership, as the majority of the traffic now originates from CIB business.
+
+Testing Summary
+
+We implemented the active/active configuration change and successfully simulated failover testing in the lower environment. Apigee is deployed across two zones, which allowed us to mirror real-world failover behavior.
+
+Two scenarios were tested:
+
+Traffic without a data center cookie
+
+Traffic with a cached data center cookie
+
+The test scenario involved intentionally taking one Apigee zone out of service during live payment traffic to observe system behavior and validate automatic failover capability.
+
+Observations:
+
+In both scenarios, transient failures were observed.
+
+Recovery time ranged from approximately 15 to 120 seconds.
+
+After this interval, traffic automatically failed over to the active Apigee zone.
+
+The delay in recovery appears to be driven by Akamai health check intervals, as failover only occurred after consecutive health check failures were detected.
+
+Requests containing cached data center cookies experienced slightly longer recovery times.
+
+Non-mTLS traffic recovered faster than mTLS traffic.
+
+In all cases, automatic failover completed successfully.
+
+Ownership & Dependency Considerations
+
+Although Retail is no longer using this domain, traffic analysis indicates that multiple mnemonics are currently leveraging this domain. This was identified only after inspecting live traffic patterns.
+
+Any production change will require coordination with all identified mnemonics to ensure validation post-change. Additionally, future maintenance activities would require cross-mnemonic testing and sign-off, increasing operational coordination overhead.
+
+Available Options
+
+Option 1: Proceed with Change Under Current Structure
+
+Move forward with the active/active production rollout.
+
+Inform and coordinate with all impacted mnemonics.
+
+Risk: Ongoing changes and maintenance will continue to require cross-team coordination.
+
+Option 2: Domain Rationalization
+
+Work with all mnemonics to migrate them to separate domains.
+
+Reserve this domain exclusively for CIB customers.
+
+This reduces long-term coordination complexity but will require additional time and effort to complete migration.
