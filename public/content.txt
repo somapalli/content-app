@@ -14,3 +14,11 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Path to Production Plan (Mar–Jun) with Milestones
+Timeline	Stage	Key Activities	Dependencies / Support	Deliverables	Milestone
+Mar (Weeks 1–4)	KY3P & Vendor Onboarding	Complete vendor risk review and onboarding	ETPM liaison to expedite process	Approved KY3P record	Milestone 1: Vendor Risk Approval Completed
+Late Mar – Early Apr	GenAI & Technology Approval	Identify AI gateway and deployment architecture	GenAI SME, Enterprise Architecture, Security team	GenAI approval, completed ETPM assessments, security approval	Milestone 2: Technology Approval Granted
+April	Permit to Design (PTD)	Define detailed architecture, deployment model, and integration design	Infrastructure / Platform SME, Architecture Review Board	Solution architecture document, deployment architecture	Milestone 3: PTD Approval
+May (Early)	Permit to Build (PTB)	Prepare engineering environments and CI/CD pipelines	DevOps team, Platform engineering team	Development environments ready, pipeline configured	Milestone 4: PTB Approval
+May – Early Jun	Cloud Setup (Azure)	Provision infrastructure and configure platform services	Azure SME, Cloud platform team	Azure infrastructure setup, deployment configuration	Milestone 5: Azure Environment Ready
+June	Permit to Operate (PTO) & Production Readiness	Final security validation and operational readiness	Security, SRE/Operations, Release management	PTO approval, monitoring dashboards, runbooks	Milestone 6: Production Go-Live Approval
