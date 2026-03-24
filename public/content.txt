@@ -14,3 +14,222 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
+Got it — you want this positioned clearly as:
+
+👉 **“Merchant solution requires a ledger capability, and we are performing due diligence to select the right technology solution”**
+
+Below is a **tuned, approval-ready version** with that narrative strengthened throughout.
+
+---
+
+# **Technology Due Diligence – Merchant Ledger Solution**
+
+---
+
+## **1. Overview and Background**
+
+As part of the merchant services modernization initiative, there is a critical need to establish a **robust ledger capability** to support end-to-end financial processing across the merchant ecosystem.
+
+The merchant solution spans multiple financial flows, including **authorization, settlement, fee processing, funding, and reconciliation**, all of which require a **centralized, accurate, and auditable system of record**.
+
+To address this need, we are evaluating and selecting the **appropriate technology solution for the merchant ledger** through a structured **technology due diligence process**. This process will ensure that the selected solution meets enterprise standards for **financial integrity, scalability, resilience, and compliance**.
+
+---
+
+## **2. What is the New Technology and What Will It Do**
+
+The new technology under evaluation is a **modern ledger platform (sub-ledger)** designed to:
+
+* Act as the **system of financial record** for all merchant transactions
+* Support **real-time, event-driven financial posting**
+* Enforce **double-entry accounting principles**
+* Provide **idempotent and deterministic processing**
+* Maintain an **immutable, auditable financial history**
+* Enable **automated reconciliation** across systems
+* Integrate with **funding systems and enterprise GL (e.g., Oracle)**
+
+This is not a single predefined tool but a **technology capability area**, and due diligence will determine whether to adopt:
+
+* An **in-house built ledger**,
+* A **vendor-based solution**, or
+* A **hybrid approach**
+
+---
+
+## **3. Why is the New Technology Needed**
+
+The merchant solution **cannot operate effectively without a ledger capability**, as it is fundamental to:
+
+* Tracking **all monetary movements**
+* Ensuring **financial accuracy and balance**
+* Supporting **merchant funding and payouts**
+* Enabling **reconciliation across multiple systems**
+* Providing **auditability and regulatory compliance**
+
+### **Limitations of Current (Legacy) Systems**
+
+* Primarily **batch-based**, lacking real-time visibility
+* **Limited scalability** for growing transaction volumes
+* **Fragmented financial tracking** across systems
+* **Manual reconciliation processes**
+* Insufficient **audit traceability**
+
+👉 Therefore, a **modern ledger solution is required**, and due diligence is necessary to ensure the **right technology choice** is made.
+
+---
+
+## **4. Risks Associated with the New Technology**
+
+Since the ledger is a **financial system of record**, selecting the wrong technology introduces significant risks:
+
+| Risk Area                   | Description                      | Mitigation via Due Diligence         |
+| --------------------------- | -------------------------------- | ------------------------------------ |
+| Financial integrity risk    | Incorrect or unbalanced postings | Validate double-entry enforcement    |
+| Duplicate postings          | Retry/replay scenarios           | Evaluate idempotency mechanisms      |
+| Event consistency           | Out-of-order or missing events   | Assess event handling design         |
+| Scalability limitations     | Inability to handle high volumes | Benchmark performance and scaling    |
+| Integration complexity      | Multiple system dependencies     | Validate integration patterns        |
+| Reconciliation gaps         | Incomplete financial matching    | Evaluate reconciliation capabilities |
+| Audit/compliance risk       | Inadequate audit trail           | Ensure immutable ledger design       |
+| Vendor risk (if applicable) | Lock-in, capability gaps         | Compare vendor vs build options      |
+
+---
+
+## **5. Background – Need for Merchant Ledger Capability**
+
+The merchant ecosystem introduces **complex financial relationships and flows**, including:
+
+* Multi-stage transaction lifecycle (auth → capture → settlement → funding)
+* Multiple financial entities (merchant, processor, bank, internal accounts)
+* Diverse financial events (fees, refunds, chargebacks, adjustments)
+
+These require a **dedicated ledger capability** to:
+
+* Maintain **accurate financial positions** across accounts
+* Link **transactions to financial entries**
+* Support **multi-layer reconciliation**
+* Provide **real-time visibility into balances and liabilities**
+
+Without a proper ledger, the system risks:
+
+* Financial inaccuracies
+* Reconciliation failures
+* Operational inefficiencies
+* Compliance issues
+
+---
+
+## **6. Objectives – Merchant Ledger Solution**
+
+The objectives of introducing a ledger capability and conducting due diligence are:
+
+* Identify and select the **most suitable ledger technology solution**
+* Establish a **single, authoritative financial system of record**
+* Ensure **accurate, balanced, and auditable financial postings**
+* Enable **real-time financial processing and visibility**
+* Support **high transaction scale and performance requirements**
+* Provide **robust reconciliation and financial controls**
+* Ensure **seamless integration with enterprise systems (GL, funding, reporting)**
+* Minimize **technology and operational risks** through informed decision-making
+
+---
+
+## **7. Scope of Due Diligence**
+
+The due diligence will focus on evaluating **technology options for implementing the merchant ledger capability**, covering:
+
+### **Technology Evaluation**
+
+* Build vs Buy vs Hybrid options
+* Vendor capabilities (if applicable)
+* Alignment with enterprise standards
+
+### **Architecture & Design**
+
+* Event-driven architecture (Kafka-based)
+* Data model (ledger, accounts, transactions)
+* Integration patterns
+
+### **Financial Controls**
+
+* Double-entry accounting
+* Idempotent processing
+* Posting rules engine
+
+### **Scalability & Performance**
+
+* Throughput and latency benchmarks
+* Horizontal scaling capability
+
+### **Resilience & Reliability**
+
+* Failure handling and replay
+* Active-active readiness
+
+### **Reconciliation & Data Integrity**
+
+* Automated reconciliation capabilities
+* Break detection and handling
+
+### **Security & Compliance**
+
+* Access control and segregation of duties
+* Audit and regulatory readiness
+
+### **Operational Readiness**
+
+* Monitoring, alerting, and observability
+* Support and operational processes
+
+---
+
+## **8. How is Success Defined**
+
+The due diligence will be successful if it results in:
+
+* Selection of a **ledger technology solution that meets all functional and non-functional requirements**
+* Demonstrated ability to ensure **financial accuracy and balance (double-entry)**
+* Proven **idempotent and replay-safe processing**
+* Ability to handle **required scale and performance**
+* Strong **auditability and traceability**
+* Seamless **integration with upstream and downstream systems**
+* Clear **risk mitigation strategy for chosen solution**
+
+---
+
+## **9. How Will Due Diligence Results Be Measured**
+
+The evaluation will be measured using:
+
+### **Technology Fit**
+
+* Alignment with architecture standards
+* Flexibility and extensibility
+
+### **Financial Accuracy**
+
+* 100% balanced ledger entries
+* Zero duplicate postings
+
+### **Performance**
+
+* Throughput (TPS / daily volume)
+* Latency benchmarks
+
+### **Resilience**
+
+* Recovery and replay success rates
+
+### **Reconciliation**
+
+* Break rate and resolution time
+
+### **Auditability**
+
+* End-to-end traceability validation
+
+### **Risk Assessment**
+
+* Identified risks with mitigation strategies
+* Vendor/technology risk scoring (if applicable)
+
