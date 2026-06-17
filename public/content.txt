@@ -14,7 +14,15 @@ You can add more content by:
 
 Feel free to customize this content according to your needs! 
 
-Additionally, while the business benefits shared so far are helpful at a general level, we would like to better understand the targeted and specific business benefits in the following two areas so we can clearly articulate them to business stakeholders:
-
-Pricing calculation approach – local versus remote fee calculation.
-Management of merchant details and fee posting details – including why maintaining these capabilities in a centralized or external platform provides measurable business value.
+Product Catalog & Pricing Configuration – NFR Summary
+Availability: 99.9% uptime for UI and APIs.
+Performance: UI pages load within 3 seconds; Salesforce APIs respond within 1 second.
+Security: Role-based access control with authentication and authorization.
+Auditability: Full audit trail for all product and pricing changes, including version history and approvals.
+Scalability: Support growth in products, pricing plans, users, and API traffic without significant redesign.
+Integration: Secure, reliable REST APIs for Salesforce consumption with standard error handling.
+Reliability & Resiliency: Graceful failure handling, monitoring, logging, and backup/recovery capabilities.
+Data Integrity: Validation controls to ensure accurate and consistent product and pricing configurations.
+Observability: End-to-end monitoring, logging, and traceability using correlation IDs.
+Compliance: Support approval workflows, versioning, effective dating, and retention requirements.
+Maintainability: Business users and product administrators should be able to manage product attributes, pricing parameters, lookup/reference data, and configuration rules through a low-code/no-code administrative UI, minimizing the need for code deployments and reducing operational overhead.
